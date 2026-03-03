@@ -1,98 +1,253 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from "react-native";
+import { useRouter } from "expo-router";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width, height } = Dimensions.get("window");
 
-export default function HomeScreen() {
+type Slide = {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: any; // require(...)
+};
+
+
+
+export default function OnboardingScreen() {
+  const router = useRouter();
+  const listRef = useRef<FlatList<Slide>>(null);
+  const [index, setIndex] = useState(0);
+
+  const goToTabs = () => {
+    router.replace("/welcome");
+  };
+
+  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+    setIndex(newIndex);
+  };
+
+  const onNext = () => {
+    if (index < SLIDES.length - 1) {
+      listRef.current?.scrollToIndex({ index: index + 1, animated: true });
+      setIndex((prev) => prev + 1);
+    } else {
+      goToTabs();
+    }
+  };
+  const SLIDES: Slide[] = [
+  {
+    id: "1",
+    title: "Analyse cutanée\nintelligente",
+    subtitle:
+      "Prenez en photo vos lésions cutanées et obtenez une aide à l’analyse en quelques secondes grâce à l’IA.",
+    image: require("../../assets/images/1.png"),
+  },
+  {
+    id: "2",
+    title: "Résultats détaillés\net fiables",
+    subtitle:
+      "Score de confiance, catégories probables et conseils personnalisés pour chaque analyse.",
+    image: require("../../assets/images/2.png"),
+  },
+  {
+    id: "3",
+    title: "Résultats détaillés\net fiables",
+    subtitle:
+      "Chiffrement de bout en bout et anonymisation. Vos données médicales restent confidentielles.",
+    image: require("../../assets/images/3.jpg"),
+  },
+];
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <TouchableOpacity onPress={goToTabs} style={styles.skipBtn} activeOpacity={0.7}>
+        <Text style={styles.skipText}>Passer</Text>
+      </TouchableOpacity>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <FlatList
+        ref={listRef}
+        data={SLIDES}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onScrollEnd}
+        renderItem={({ item }) => (
+          <View style={styles.slide}>
+            <View style={styles.imageWrap}>
+              <Image source={item.image} style={styles.image} resizeMode="contain" />
+            </View>
+
+            <View style={styles.textWrap}>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.subtitle}>{item.subtitle}</Text>
+            </View>
+          </View>
+        )}
+      />
+
+      {/* Bottom area: dots + next button + disclaimer */}
+      <View style={styles.bottom}>
+        <View style={styles.dotsRow}>
+          {SLIDES.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === index ? styles.dotActive : styles.dotInactive]}
+            />
+          ))}
+        </View>
+
+        <TouchableOpacity onPress={onNext} style={styles.nextBtn} activeOpacity={0.85}>
+          <Text style={styles.nextArrow}>›</Text>
+        </TouchableOpacity>
+
+        <View style={styles.disclaimerRow}>
+          <Text style={styles.warningIcon}>⚠️</Text>
+          <Text style={styles.disclaimerText}>
+            Cette application n’a pas valeur de diagnostic médical. Consultez un
+            professionnel de santé.
+          </Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
+const GREEN = "#18B7A0";
+const TEXT = "#0F172A";
+const MUTED = "#64748B";
+const BG = "#FFFFFF";
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: BG,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  skipBtn: {
+    position: "absolute",
+    top: 16,
+    right: 18,
+    zIndex: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
+  skipText: {
+    color: MUTED,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  slide: {
+    width,
+    paddingTop: 56,
+    paddingHorizontal: 22,
+    alignItems: "center",
+  },
+  imageWrap: {
+    width: "100%",
+    height: height * 0.45,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  image: {
+    width: "85%",
+    height: "85%",
+  },
+
+  textWrap: {
+    width: "100%",
+    marginTop: 10,
+  },
+  title: {
+    color: TEXT,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  subtitle: {
+    color: MUTED,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    maxWidth: 320,
+  },
+
+  bottom: {
+    position: "absolute",
     left: 0,
-    position: 'absolute',
+    right: 0,
+    bottom: 18,
+    paddingHorizontal: 22,
+    paddingBottom: 10,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 999,
+  },
+  dotActive: {
+    width: 22,
+    backgroundColor: GREEN,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: "#D8E2E8",
+  },
+
+  nextBtn: {
+    position: "absolute",
+    right: 22,
+    bottom: 48,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  nextArrow: {
+    color: "white",
+    fontSize: 34,
+    lineHeight: 34,
+    fontWeight: "700",
+    marginTop: -2,
+  },
+
+  disclaimerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 14,
+  },
+  warningIcon: {
+    fontSize: 12,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#94A3B8",
   },
 });
