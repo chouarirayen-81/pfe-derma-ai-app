@@ -62,7 +62,7 @@ export default function OnboardingScreen() {
   },
   {
     id: "3",
-    title: "Résultats détaillés\net fiables",
+    title: "Vos données \nprotégées",
     subtitle:
       "Chiffrement de bout en bout et anonymisation. Vos données médicales restent confidentielles.",
     image: require("../../assets/images/3.jpg"),
@@ -86,8 +86,10 @@ export default function OnboardingScreen() {
         renderItem={({ item }) => (
           <View style={styles.slide}>
             <View style={styles.imageWrap}>
-              <Image source={item.image} style={styles.image} resizeMode="contain" />
-            </View>
+  <View style={styles.imageCard}>
+    <Image source={item.image} style={styles.image} resizeMode="cover" />
+  </View>
+</View>
 
             <View style={styles.textWrap}>
               <Text style={styles.title}>{item.title}</Text>
@@ -107,7 +109,7 @@ export default function OnboardingScreen() {
             />
           ))}
         </View>
-
+          
         <TouchableOpacity onPress={onNext} style={styles.nextBtn} activeOpacity={0.85}>
           <Text style={styles.nextArrow}>›</Text>
         </TouchableOpacity>
@@ -155,16 +157,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   imageWrap: {
-    width: "100%",
-    height: height * 0.45,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  image: {
-    width: "85%",
-    height: "85%",
-  },
+  width: "100%",
+  height: height * 0.45,
+  alignItems: "center",
+  justifyContent: "center",
+},
 
+imageCard: {
+  width: "86%",
+  height: "90%",
+  borderRadius: 26,     // ✅ هنا تتحكم في round
+  overflow: "hidden",   // ✅ ضروري باش القص يعمل
+  backgroundColor: "#F2F6F7",
+},
+
+image: {
+  width: "100%",
+  height: "100%",
+},
   textWrap: {
     width: "100%",
     marginTop: 10,

@@ -25,7 +25,7 @@ export default function LoginScreen() {
 
   const onLogin = () => {
     // ✅ Plus tard: appel API login
-    router.replace("/(tabs)");
+    router.replace("/acceuil");
   };
 
   return (
