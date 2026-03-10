@@ -90,7 +90,7 @@ export default function WelcomeScreen() {
             </View>
           </View>
 
-          {/* ===== BOTTOM (collé en bas) ===== */}
+          
           <View style={styles.bottomArea}>
             <TouchableOpacity
               style={styles.cta}
@@ -118,7 +118,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
 
-  // ✅ باش الصفحة توصل للآخر
+  //  باش الصفحة توصل للآخر
   scrollContent: {
     flexGrow: 1,
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
 
-  // ✅ Cards glass شويّة كيما الصورة
+  
   card: {
     flexDirection: "row",
     alignItems: "center",

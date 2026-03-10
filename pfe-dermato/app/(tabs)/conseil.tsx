@@ -208,25 +208,26 @@ export default function ConseilsScreen() {
   const pathname = usePathname();
 
   // Même logique isActive que HomeScreen
-  const isActive = (tabId: TabId) => {
-    if (tabId === 'accueil')    return pathname === 'acceuil' || pathname === '/acceuil';
-    if (tabId === 'historique') return pathname.startsWith('/historique');
-    if (tabId === 'scan')       return pathname.startsWith('/scan');
-    if (tabId === 'conseils')   return pathname.startsWith('/conseil');
-    if (tabId === 'profil')     return pathname.startsWith('/profile');
-    return false;
-  };
+  const isActive = (tabId: TabId): boolean => {
+  if (tabId === 'accueil')    return pathname === '/(tabs)' || pathname === '/(tabs)/acceuil';
+  if (tabId === 'historique') return pathname.startsWith('/(tabs)/historique');
+  if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
+  if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/conseil');
+  if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
+  return false;
+};
 
-  // Même logique goTab que HomeScreen
-  const goTab = (tabId: TabId) => {
+  // ✅ Exact same goTab logic as HomeScreen
+ const goTab = (tabId: TabId) => {
     switch (tabId) {
-      case 'accueil':    router.push('/(tabs)');         break;
+      case 'accueil':    router.push('/acceuil');         break;
       case 'historique': router.push('/historique');     break;
-      case 'scan':       router.push('/(tabs)/scan');    break;
-      case 'conseils':   router.push('/');    break;
+      case 'scan':       router.push('/scan');    break;
+      case 'conseils':   router.push('/conseil');    break;
       case 'profil':     router.push('/profile'); break;
     }
   };
+
 
   const tabs = [
     { id: 'accueil',    label: 'Accueil',    Icon: IconHome },

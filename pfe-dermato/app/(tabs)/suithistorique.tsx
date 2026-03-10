@@ -173,11 +173,11 @@ export default function AnalysisDetailScreen() {
 
   const goTab = (tabId: TabId) => {
     switch (tabId) {
-      case 'accueil':    router.push('/(tabs)'); break;
+      case 'accueil':    router.push('/(tabs)/acceuil'); break;
       case 'historique': router.push('/historique'); break;
       case 'scan':       router.push('/(tabs)/scan'); break;
-      case 'conseils':   router.push('/conseil'); break;
-      case 'profil':     router.push('/profile'); break;
+      case 'conseils':   router.push('/(tabs)/conseil'); break;
+      case 'profil':     router.push('/(tabs)/profile'); break;
     }
   };
 

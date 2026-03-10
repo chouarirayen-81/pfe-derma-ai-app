@@ -191,24 +191,25 @@ export default function ProfileScreen() {
   const [notifications, setNotifs]  = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(false);
 
-  const isActive = (tabId: TabId): boolean => {
-    if (tabId === 'accueil')    return pathname === '/(tabs)' || pathname === '/(tabs)/index';
-    if (tabId === 'historique') return pathname.startsWith('/historique');
-    if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
-    if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/tips');
-    if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
-    return false;
-  };
+ const isActive = (tabId: TabId): boolean => {
+  if (tabId === 'accueil')    return pathname === '/(tabs)' || pathname === '/(tabs)/acceuil';
+  if (tabId === 'historique') return pathname.startsWith('/(tabs)/historique');
+  if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
+  if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/conseil');
+  if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
+  return false;
+};
 
-  const goTab = (tabId: TabId) => {
+ const goTab = (tabId: TabId) => {
     switch (tabId) {
-      case 'accueil':    router.push('/acceuil'); break;
-      case 'historique': router.push('/historique'); break;
-      case 'scan':       router.push('/scan'); break;
-      case 'conseils':   router.push('/conseil'); break;
+      case 'accueil':    router.push('/acceuil');         break;
+      case 'historique': router.push('/historique');     break;
+      case 'scan':       router.push('/scan');    break;
+      case 'conseils':   router.push('/conseil');    break;
       case 'profil':     router.push('/profile'); break;
     }
   };
+
 
   const handleLogout = () => {
     Alert.alert('Se déconnecter', 'Voulez-vous vraiment vous déconnecter ?', [
@@ -234,8 +235,7 @@ export default function ProfileScreen() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} activeOpacity={0.7}
-          onPress={() => router.push('/(tabs)')}>
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <IconBack/>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Mon profil</Text>

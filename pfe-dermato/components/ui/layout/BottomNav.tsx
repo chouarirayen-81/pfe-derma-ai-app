@@ -18,10 +18,10 @@ type TabItem = {
 };
 
 const TABS: TabItem[] = [
-  { label: "Accueil", path: "/(tabs)", Icon: Home },
-  { label: "Historique", path: "/(tabs)/history", Icon: History },
+  { label: "Accueil", path: "/(tabs)/acceuil", Icon: Home },
+  { label: "Historique", path: "/(tabs)/historique", Icon: History },
   { label: "Scan", path: "/(tabs)/scan", Icon: Camera },
-  { label: "Conseils", path: "/(tabs)/tips", Icon: Lightbulb },
+  { label: "Conseils", path: "/(tabs)/conseil", Icon: Lightbulb },
   { label: "Profil", path: "/(tabs)/profile", Icon: User },
 ];
 

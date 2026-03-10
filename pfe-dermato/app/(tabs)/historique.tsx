@@ -107,24 +107,24 @@ export default function HistoriqueScreen() {
 
   // ✅ Exact same isActive logic as HomeScreen
   const isActive = (tabId: TabId): boolean => {
-    if (tabId === 'accueil')    return pathname === '/acceuil' || pathname === '/acceuil';
-    if (tabId === 'historique') return pathname.startsWith('/historique');
-    if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
-    if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/tips');
-    if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
-    return false;
-  };
-
+  if (tabId === 'accueil')    return pathname === '/(tabs)' || pathname === '/(tabs)/acceuil';
+  if (tabId === 'historique') return pathname.startsWith('/(tabs)/historique');
+  if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
+  if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/conseil');
+  if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
+  return false;
+};
   // ✅ Exact same goTab logic as HomeScreen
   const goTab = (tabId: TabId) => {
     switch (tabId) {
-      case 'accueil':    router.push('/(tabs)'); break;
-      case 'historique': router.push('/historique'); break;
-      case 'scan':       router.push('/(tabs)/scan'); break;
-      case 'conseils':   router.push('/conseil'); break;
-      case 'profil':     router.push('/(tabs)/profile'); break;
+      case 'accueil':    router.push('/acceuil');         break;
+      case 'historique': router.push('/historique');     break;
+      case 'scan':       router.push('/scan');    break;
+      case 'conseils':   router.push('/conseil');    break;
+      case 'profil':     router.push('/profile'); break;
     }
   };
+
 
   const totalCount     = analyses.length;
   const thisMonthCount = analyses.filter(a => a.date.includes('2026') && a.status === 'done').length;
@@ -157,7 +157,7 @@ export default function HistoriqueScreen() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} activeOpacity={0.7} onPress={() => router.push('/(tabs)')}>
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <IconBack/>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Historique</Text>

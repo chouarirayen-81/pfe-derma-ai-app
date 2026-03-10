@@ -18,7 +18,7 @@ type Slide = {
   id: string;
   title: string;
   subtitle: string;
-  image: any; // require(...)
+  image: any; 
 };
 
 
