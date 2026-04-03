@@ -60,7 +60,7 @@ export default function ScanTipsScreen() {
       {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.closeBtn}
-           onPress={() => router.back()} activeOpacity={0.7}>
+           onPress={() =>  router.push('/(tabs)/acceuil')} activeOpacity={0.7}>
           <IconX/>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Nouvelle analyse</Text>
