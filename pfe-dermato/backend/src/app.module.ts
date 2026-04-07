@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-// Entités (une par table)
+// Entités
 import { Analyse } from './analyses/analyse.entity';
 import { LogAudit } from './audit/log-audit.entity';
 import { RefreshToken } from './auth/Refresh-token.entity';
@@ -16,22 +16,23 @@ import { AnalysesModule } from './analyses/analyses.module';
 import { AuthModule } from './auth/auth.module';
 import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
 
+// Controller test
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
-    // ── 1. Variables d'environnement (.env) ──
     ConfigModule.forRoot({ isGlobal: true }),
 
-    // ── 2. Connexion MySQL via TypeORM ──
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      inject:  [ConfigService],
+      inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type:     'mysql',
-        host:     config.get<string>('DB_HOST',     'localhost'),
-        port:     config.get<number>('DB_PORT',     3306),
-        username: config.get<string>('DB_USER',     'root'),
+        type: 'mysql',
+        host: config.get<string>('DB_HOST', 'localhost'),
+        port: config.get<number>('DB_PORT', 3306),
+        username: config.get<string>('DB_USER', 'root'),
         password: config.get<string>('DB_PASSWORD', ''),
-        database: config.get<string>('DB_NAME',     'dermatobase'),
+        database: config.get<string>('DB_NAME', 'dermatobase'),
         entities: [
           Utilisateur,
           Analyse,
@@ -41,16 +42,16 @@ import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
           RefreshToken,
           LogAudit,
         ],
-        synchronize: false, // ⚠️ false en prod — la DB est déjà créée via SQL
-        logging:     config.get<string>('NODE_ENV') === 'development',
-        charset:     'utf8mb4',
+        synchronize: false,
+        logging: config.get<string>('NODE_ENV') === 'development',
+        charset: 'utf8mb4',
       }),
     }),
 
-    // ── 3. Modules fonctionnels ──
     AuthModule,
     UtilisateursModule,
     AnalysesModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

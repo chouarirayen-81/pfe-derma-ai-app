@@ -12,6 +12,13 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 
+
+
+import { loginUser } from '@/backend/src/api/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
+
 const { height: H } = Dimensions.get("window");
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -33,6 +40,7 @@ const C = {
 };
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
+
 const IconBack = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M19 12H5M5 12l7-7M5 12l7 7" stroke={C.text} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"/>
@@ -118,6 +126,8 @@ function getStrength(pwd: string) {
   ];
   return { score, ...map[score] };
 }
+
+
 
 const StrengthBar = ({ password }: { password: string }) => {
   const st = getStrength(password);
@@ -274,22 +284,44 @@ export default function LoginScreen() {
   const handleEmailChange = (v: string) => { setEmail(v); if (emailError) setEmailError(""); };
   const handlePwdChange   = (v: string) => { setPassword(v); if (pwdError) setPwdError(""); };
 
-  const onLogin = useCallback(() => {
-    let hasError = false;
-    if (!email.trim())            { setEmailError("L'email est requis"); hasError = true; }
-    else if (!isEmailValid)       { setEmailError("Format d'email invalide"); hasError = true; }
-    if (!password)                { setPwdError("Le mot de passe est requis"); hasError = true; }
-    else if (password.length < 6) { setPwdError("Minimum 6 caractères"); hasError = true; }
-    if (hasError) { shake(); return; }
+ const onLogin = useCallback(async () => {
+  // Validation
+  let hasError = false;
+  if (!email.trim())            { setEmailError("L'email est requis"); hasError = true; }
+  else if (!isEmailValid)       { setEmailError("Format d'email invalide"); hasError = true; }
+  if (!password)                { setPwdError("Le mot de passe est requis"); hasError = true; }
+  else if (password.length < 6) { setPwdError("Minimum 6 caractères"); hasError = true; }
+  if (hasError) { shake(); return; }
 
-    setLoading(true);
-    const payload = { email: email.trim().toLowerCase(), password, rememberMe, platform: Platform.OS };
-    console.log("📦 Login payload:", payload);
-    // TODO: remplacer par votre appel API
-    // fetch("https://ton-api.com/auth/login", { method: "POST", body: JSON.stringify(payload) })
-    setTimeout(() => { setLoading(false); router.replace("/(tabs)/acceuil"); }, 1200);
-  }, [email, password, isEmailValid, rememberMe, shake, router]);
+  setLoading(true);
+  try {
+    await loginUser(email.trim().toLowerCase(), password);
+    router.replace("/acceuil");
 
+  } catch (err: any) {
+    shake();
+
+    // ✅ Gestion des erreurs selon le code HTTP
+    const status = err.response?.status;
+    const message = err.response?.data?.message;
+
+    if (status === 401) {
+      setPwdError("Email ou mot de passe incorrect");
+    } else if (status === 404) {
+      setEmailError("Aucun compte trouvé avec cet email");
+    } else if (status === 429) {
+      setPwdError("Trop de tentatives, réessayez dans 5 minutes");
+    } else if (!err.response) {
+      // Pas de connexion réseau
+      setPwdError("Impossible de contacter le serveur");
+    } else {
+      setPwdError(message || "Une erreur est survenue");
+    }
+
+  } finally {
+    setLoading(false);
+  }
+}, [email, password, isEmailValid, shake, router]);
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.primary2}/>

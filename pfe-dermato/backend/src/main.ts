@@ -22,7 +22,11 @@ async function bootstrap() {
   );
 
   // ✅ CORS pour React Native
-  app.enableCors({ origin: '*' });
+  app.enableCors({
+    origin: '*',  // en prod : mettre ton domaine
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   // ✅ Swagger
   const config = new DocumentBuilder()

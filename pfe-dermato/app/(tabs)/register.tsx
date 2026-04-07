@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import {
   View, Text, StyleSheet, Platform, TouchableOpacity,
   SafeAreaView, TextInput, ScrollView, KeyboardAvoidingView,
-  StatusBar, Animated,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
+import { registerUser } from "@/backend/src/api/auth";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
@@ -22,42 +23,50 @@ const C = {
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+// ✅ CORRIGÉ : nom + prenom séparés comme dans la DB
 interface FormData {
-  fullName:        string;
+  nom:             string;
+  prenom:          string;
   email:           string;
-  phone:           string;
+  telephone:       string;
+  age:             string;
   password:        string;
   confirmPassword: string;
-  age:             string;
 }
 
 interface FormErrors {
-  fullName?:        string;
+  nom?:             string;
+  prenom?:          string;
   email?:           string;
-  phone?:           string;
+  telephone?:       string;
+  age?:             string;
   password?:        string;
   confirmPassword?: string;
-  age?:             string;
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 const validate = (data: FormData): FormErrors => {
   const errors: FormErrors = {};
 
-  if (!data.fullName.trim())
-    errors.fullName = "Le nom complet est obligatoire";
-  else if (data.fullName.trim().length < 3)
-    errors.fullName = "Minimum 3 caractères";
+  if (!data.nom.trim())
+    errors.nom = "Le nom est obligatoire";
+  else if (data.nom.trim().length < 2)
+    errors.nom = "Minimum 2 caractères";
+
+  if (!data.prenom.trim())
+    errors.prenom = "Le prénom est obligatoire";
+  else if (data.prenom.trim().length < 2)
+    errors.prenom = "Minimum 2 caractères";
 
   if (!data.email.trim())
     errors.email = "L'email est obligatoire";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
     errors.email = "Email invalide";
 
-  if (!data.phone.trim())
-    errors.phone = "Le téléphone est obligatoire";
-  else if (!/^\+?[\d\s\-]{8,15}$/.test(data.phone))
-    errors.phone = "Numéro invalide";
+  if (!data.telephone.trim())
+    errors.telephone = "Le téléphone est obligatoire";
+  else if (!/^\+?[\d\s\-]{8,15}$/.test(data.telephone))
+    errors.telephone = "Numéro invalide";
 
   if (!data.age.trim())
     errors.age = "L'âge est obligatoire";
@@ -82,17 +91,17 @@ const validate = (data: FormData): FormErrors => {
 };
 
 // ─── Password strength ────────────────────────────────────────────────────────
-const getPasswordStrength = (pwd: string): { level: number; label: string; color: string } => {
+const getPasswordStrength = (pwd: string) => {
   if (!pwd) return { level: 0, label: "", color: C.border };
   let score = 0;
-  if (pwd.length >= 8)        score++;
-  if (/[A-Z]/.test(pwd))      score++;
-  if (/\d/.test(pwd))         score++;
-  if (/[^A-Za-z0-9]/.test(pwd)) score++;
-  if (pwd.length >= 12)       score++;
-  if (score <= 1) return { level: 1, label: "Faible",    color: C.error };
-  if (score <= 3) return { level: 2, label: "Moyen",     color: "#f59e0b" };
-  return            { level: 3, label: "Fort",      color: C.primary };
+  if (pwd.length >= 8)           score++;
+  if (/[A-Z]/.test(pwd))         score++;
+  if (/\d/.test(pwd))            score++;
+  if (/[^A-Za-z0-9]/.test(pwd))  score++;
+  if (pwd.length >= 12)          score++;
+  if (score <= 1) return { level: 1, label: "Faible", color: C.error };
+  if (score <= 3) return { level: 2, label: "Moyen",  color: "#f59e0b" };
+  return              { level: 3, label: "Fort",   color: C.primary };
 };
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -138,9 +147,7 @@ const IconEye = ({ show }: { show: boolean }) => (
         <Circle cx={12} cy={12} r={3} stroke={C.light} strokeWidth={2}/>
       </>
     ) : (
-      <>
-        <Path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22" stroke={C.light} strokeWidth={2} strokeLinecap="round"/>
-      </>
+      <Path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22" stroke={C.light} strokeWidth={2} strokeLinecap="round"/>
     )}
   </Svg>
 );
@@ -159,8 +166,7 @@ const IconError = () => (
 // ─── Field Component ──────────────────────────────────────────────────────────
 const Field = ({
   label, icon, value, onChangeText, placeholder, keyboardType,
-  secureTextEntry, onToggleSecure, showSecure, error, required = true,
-  hint,
+  secureTextEntry, onToggleSecure, showSecure, error, required = true, hint,
 }: {
   label: string; icon: React.ReactNode; value: string;
   onChangeText: (t: string) => void; placeholder: string;
@@ -178,11 +184,7 @@ const Field = ({
         {required && <Text style={f.required}>*</Text>}
       </View>
 
-      <View style={[
-        f.inputRow,
-        error    && f.inputError,
-        isValid  && f.inputValid,
-      ]}>
+      <View style={[f.inputRow, error && f.inputError, isValid && f.inputValid]}>
         <View style={f.iconWrap}>{icon}</View>
         <TextInput
           style={f.input}
@@ -210,9 +212,7 @@ const Field = ({
           <Text style={f.errorTxt}>{error}</Text>
         </View>
       )}
-      {hint && !error && (
-        <Text style={f.hint}>{hint}</Text>
-      )}
+      {hint && !error && <Text style={f.hint}>{hint}</Text>}
     </View>
   );
 };
@@ -238,18 +238,19 @@ const f = StyleSheet.create({
 export default function RegisterScreen() {
   const router = useRouter();
 
+  // ✅ CORRIGÉ : état avec nom + prenom séparés
   const [formData, setFormData] = useState<FormData>({
-    fullName: "", email: "", phone: "", password: "", confirmPassword: "", age: "",
+    nom: "", prenom: "", email: "", telephone: "", age: "",
+    password: "", confirmPassword: "",
   });
-  const [errors, setErrors]         = useState<FormErrors>({});
-  const [showPwd, setShowPwd]       = useState(false);
+  const [errors, setErrors]           = useState<FormErrors>({});
+  const [showPwd, setShowPwd]         = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [submitted, setSubmitted]   = useState(false);
-  const [loading, setLoading]       = useState(false);
+  const [submitted, setSubmitted]     = useState(false);
+  const [loading, setLoading]         = useState(false);
 
   const update = (key: keyof FormData) => (value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
-    // Validation live après première soumission
     if (submitted) {
       const newErrors = validate({ ...formData, [key]: value });
       setErrors(prev => ({ ...prev, [key]: newErrors[key] }));
@@ -262,42 +263,50 @@ export default function RegisterScreen() {
     setSubmitted(true);
     const newErrors = validate(formData);
     setErrors(newErrors);
-
     if (Object.keys(newErrors).length > 0) return;
 
     setLoading(true);
+    try {
+      // ✅ CORRIGÉ : payload correspond exactement aux colonnes de la DB
+      const payload = {
+        nom:       formData.nom.trim(),
+        prenom:    formData.prenom.trim(),
+        email:     formData.email.trim().toLowerCase(),
+        telephone: formData.telephone.trim(),
+        age:       Number(formData.age),
+        password:  formData.password,
+      };
 
-    // ✅ PAYLOAD PRÊT POUR LE BACKEND
-    const payload = {
-      full_name:        formData.fullName.trim(),
-      email:            formData.email.trim().toLowerCase(),
-      phone:            formData.phone.trim(),
-      age:              Number(formData.age),
-      password:         formData.password,
-    };
+      await registerUser(payload);
+      router.replace("/login");
 
-    console.log("📦 Payload register:", JSON.stringify(payload, null, 2));
+    } catch (err: any) {
+      const status  = err.response?.status;
+      const message = err.response?.data?.message;
 
-    // TODO: remplace par ton appel API
-    // const response = await fetch("https://ton-api.com/auth/register", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(payload),
-    // });
-    // const data = await response.json();
-    // if (!response.ok) { setErrors({ email: data.message }); setLoading(false); return; }
-
-    setTimeout(() => {
+      if (status === 409) {
+        setErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
+      } else if (status === 400) {
+        setErrors(prev => ({ ...prev, email: message || "Données invalides" }));
+      } else if (!err.response) {
+        setErrors(prev => ({ ...prev, email: err?.message || "Erreur frontend" }));
+      } else {
+        setErrors(prev => ({ ...prev, email: message || "Erreur inscription" }));
+      }
+    } finally {
       setLoading(false);
-      router.replace("/(tabs)");
-    }, 1200);
+    }
   };
 
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.card}/>
-      <KeyboardAvoidingView style={{ flex:1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          contentContainerStyle={s.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={s.container}>
 
             {/* Back */}
@@ -314,34 +323,54 @@ export default function RegisterScreen() {
             </View>
 
             <Text style={s.title}>Créer un compte</Text>
-            <Text style={s.subtitle}>Tous les champs marqués <Text style={{ color: C.error }}>*</Text> sont obligatoires</Text>
+            <Text style={s.subtitle}>
+              Tous les champs marqués <Text style={{ color: C.error }}>*</Text> sont obligatoires
+            </Text>
 
-            {/* ── FIELDS ── */}
-            <Field
-              label="Nom complet" icon={<IconUser/>}
-              value={formData.fullName} onChangeText={update("fullName")}
-              placeholder="Jean Dupont" error={errors.fullName}
-            />
+            {/* ── CHAMPS NOM + PRENOM CÔTE À CÔTE ── */}
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="Nom" icon={<IconUser/>}
+                  value={formData.nom} onChangeText={update("nom")}
+                  placeholder="Dupont" error={errors.nom}
+                />
+              </View>
+              <View style={{ width: 10 }}/>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label="Prénom" icon={<IconUser/>}
+                  value={formData.prenom} onChangeText={update("prenom")}
+                  placeholder="Jean" error={errors.prenom}
+                />
+              </View>
+            </View>
+
+            {/* ── EMAIL ── */}
             <Field
               label="Email" icon={<IconMail/>}
               value={formData.email} onChangeText={update("email")}
               placeholder="jean@email.com" keyboardType="email-address"
               error={errors.email}
             />
+
+            {/* ── TELEPHONE ── */}
             <Field
               label="Téléphone" icon={<IconPhone/>}
-              value={formData.phone} onChangeText={update("phone")}
-              placeholder="+33 6 12 34 56 78" keyboardType="phone-pad"
-              error={errors.phone} hint="Format international recommandé"
+              value={formData.telephone} onChangeText={update("telephone")}
+              placeholder="+216 20 123 456" keyboardType="phone-pad"
+              error={errors.telephone} hint="Format international recommandé"
             />
+
+            {/* ── AGE ── */}
             <Field
               label="Âge" icon={<IconCalendar/>}
               value={formData.age} onChangeText={update("age")}
-              placeholder="Ex: 32" keyboardType="numeric"
+              placeholder="Ex: 25" keyboardType="numeric"
               error={errors.age}
             />
 
-            {/* Password */}
+            {/* ── MOT DE PASSE ── */}
             <Field
               label="Mot de passe" icon={<IconLock/>}
               value={formData.password} onChangeText={update("password")}
@@ -351,18 +380,22 @@ export default function RegisterScreen() {
               hint="8+ caractères, 1 majuscule, 1 chiffre"
             />
 
-            {/* Strength bar */}
+            {/* Barre de force du mot de passe */}
             {formData.password.length > 0 && (
               <View style={s.strengthWrap}>
                 <View style={s.strengthBars}>
-                  {[1,2,3].map(i => (
-                    <View key={i} style={[s.strengthBar, { backgroundColor: i <= strength.level ? strength.color : C.border }]}/>
+                  {[1, 2, 3].map(i => (
+                    <View
+                      key={i}
+                      style={[s.strengthBar, { backgroundColor: i <= strength.level ? strength.color : C.border }]}
+                    />
                   ))}
                 </View>
                 <Text style={[s.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
               </View>
             )}
 
+            {/* ── CONFIRMER MOT DE PASSE ── */}
             <Field
               label="Confirmer le mot de passe" icon={<IconLock/>}
               value={formData.confirmPassword} onChangeText={update("confirmPassword")}
@@ -386,12 +419,19 @@ export default function RegisterScreen() {
               style={[s.cta, loading && s.ctaLoading]}
               onPress={onRegister}
               activeOpacity={0.88}
-              disabled={loading}>
-              <Text style={s.ctaText}>{loading ? "Création en cours..." : "Créer mon compte"}</Text>
+              disabled={loading}
+            >
+              <Text style={s.ctaText}>
+                {loading ? "Création en cours..." : "Créer mon compte"}
+              </Text>
             </TouchableOpacity>
 
             {/* Login link */}
-            <TouchableOpacity style={s.loginRow} onPress={() => router.replace("/login")} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={s.loginRow}
+              onPress={() => router.replace("/login")}
+              activeOpacity={0.7}
+            >
               <Text style={s.loginTxt}>Déjà un compte ? </Text>
               <Text style={s.loginLink}>Se connecter</Text>
             </TouchableOpacity>
@@ -405,37 +445,36 @@ export default function RegisterScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:         { flex:1, backgroundColor: C.card },
-  scrollContent:{ paddingBottom: 40 },
-  container:    { paddingHorizontal: 22, paddingTop: 10 },
+  safe:          { flex: 1, backgroundColor: C.card },
+  scrollContent: { paddingBottom: 40 },
+  container:     { paddingHorizontal: 22, paddingTop: 10 },
 
-  backBtn:  { width:42, height:42, borderRadius:21, backgroundColor: C.bg, alignItems:"center", justifyContent:"center", marginBottom:12 },
+  backBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.bg, alignItems: "center", justifyContent: "center", marginBottom: 12 },
 
-  logoRow:    { flexDirection:"row", alignItems:"center", gap:10, marginBottom:6 },
-  logoCircle: { width:44, height:44, borderRadius:22, backgroundColor: C.primary, alignItems:"center", justifyContent:"center", shadowColor: C.primary, shadowOffset:{width:0,height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:6 },
-  logoIcon:   { color:"#fff", fontSize:18, fontWeight:"900" },
-  brand:      { fontSize:17, fontWeight:"900", color: C.text },
+  logoRow:    { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 },
+  logoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primary, alignItems: "center", justifyContent: "center", shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  logoIcon:   { color: "#fff", fontSize: 18, fontWeight: "900" },
+  brand:      { fontSize: 17, fontWeight: "900", color: C.text },
 
-  title:    { fontSize:28, fontWeight:"900", color: C.text, marginTop:8, letterSpacing:-0.5 },
-  subtitle: { fontSize:13, color: C.light, marginTop:6, marginBottom:20, lineHeight:18 },
+  title:    { fontSize: 28, fontWeight: "900", color: C.text, marginTop: 8, letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, color: C.light, marginTop: 6, marginBottom: 20, lineHeight: 18 },
 
-  // Password strength
-  strengthWrap:  { flexDirection:"row", alignItems:"center", gap:8, marginTop:-8, marginBottom:12 },
-  strengthBars:  { flexDirection:"row", gap:5, flex:1 },
-  strengthBar:   { flex:1, height:4, borderRadius:2 },
-  strengthLabel: { fontSize:12, fontWeight:"700", minWidth:40 },
+  // ✅ Ligne côte à côte pour Nom + Prénom
+  row: { flexDirection: "row", alignItems: "flex-start" },
 
-  // Global error
-  globalError:    { flexDirection:"row", alignItems:"center", gap:8, backgroundColor: C.errorBg, borderWidth:1, borderColor:"#fecaca", borderRadius:12, padding:12, marginBottom:14 },
-  globalErrorTxt: { fontSize:13, color: C.error, fontWeight:"600", flex:1 },
+  strengthWrap:  { flexDirection: "row", alignItems: "center", gap: 8, marginTop: -8, marginBottom: 12 },
+  strengthBars:  { flexDirection: "row", gap: 5, flex: 1 },
+  strengthBar:   { flex: 1, height: 4, borderRadius: 2 },
+  strengthLabel: { fontSize: 12, fontWeight: "700", minWidth: 40 },
 
-  // CTA
-  cta:       { height:54, borderRadius:18, backgroundColor: C.primary, alignItems:"center", justifyContent:"center", marginTop:6, shadowColor: C.primary, shadowOffset:{width:0,height:8}, shadowOpacity:0.35, shadowRadius:14, elevation:8 },
-  ctaLoading:{ backgroundColor: C.primary+"99" },
-  ctaText:   { color:"#fff", fontSize:16, fontWeight:"900" },
+  globalError:    { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.errorBg, borderWidth: 1, borderColor: "#fecaca", borderRadius: 12, padding: 12, marginBottom: 14 },
+  globalErrorTxt: { fontSize: 13, color: C.error, fontWeight: "600", flex: 1 },
 
-  // Login link
-  loginRow: { flexDirection:"row", justifyContent:"center", alignItems:"center", marginTop:16 },
-  loginTxt: { fontSize:14, color: C.light },
-  loginLink:{ fontSize:14, color: C.primary, fontWeight:"800" },
+  cta:       { height: 54, borderRadius: 18, backgroundColor: C.primary, alignItems: "center", justifyContent: "center", marginTop: 6, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 8 },
+  ctaLoading:{ backgroundColor: C.primary + "99" },
+  ctaText:   { color: "#fff", fontSize: 16, fontWeight: "900" },
+
+  loginRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 16 },
+  loginTxt: { fontSize: 14, color: C.light },
+  loginLink:{ fontSize: 14, color: C.primary, fontWeight: "800" },
 });

@@ -1,9 +1,8 @@
 // backend/src/auth/auth.service.ts
-// npm install @nestjs/jwt bcrypt @types/bcrypt
 
 import {
   Injectable, UnauthorizedException,
-  ConflictException, BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -29,16 +28,18 @@ export class AuthService {
 
   // ── INSCRIPTION ──────────────────────────────────────────
   async register(dto: {
-    nom: string; prenom: string; email: string;
-    password: string; telephone?: string;
+    nom:        string;
+    prenom:     string;
+    email:      string;
+    password:   string;
+    telephone?: string;
+    age?:       number; // ✅ AJOUTÉ
   }) {
-    // Vérifier si l'email existe déjà
     const existe = await this.utilisateurRepo.findOne({
       where: { email: dto.email },
     });
     if (existe) throw new ConflictException('Email déjà utilisé');
 
-    // Hasher le mot de passe (jamais en clair en base !)
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     const user = this.utilisateurRepo.create({
@@ -47,6 +48,7 @@ export class AuthService {
       email:        dto.email.toLowerCase().trim(),
       passwordHash,
       telephone:    dto.telephone,
+      age:          dto.age, // ✅ AJOUTÉ
     });
 
     const saved = await this.utilisateurRepo.save(user);
@@ -71,19 +73,16 @@ export class AuthService {
   private async genererTokens(user: Utilisateur) {
     const payload = { sub: user.id, email: user.email, role: user.role };
 
-    // Access token (courte durée : 15min)
     const accessToken = this.jwtService.sign(payload, {
       secret:    this.config.get('JWT_SECRET'),
       expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
     });
 
-    // Refresh token (longue durée : 7 jours)
     const refreshToken = this.jwtService.sign(payload, {
       secret:    this.config.get('JWT_REFRESH_SECRET'),
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
 
-    // Sauvegarder le refresh token en base
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + 7);
 
