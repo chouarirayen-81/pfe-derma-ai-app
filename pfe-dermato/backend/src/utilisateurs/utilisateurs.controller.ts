@@ -1,7 +1,7 @@
 // backend/src/utilisateurs/utilisateurs.controller.ts
 import {
   Controller, Get, Put, Delete,
-  Body, Request, UseGuards,
+  Body,Patch, Request, UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags, ApiOperation, ApiResponse,
@@ -9,7 +9,7 @@ import {
 } from '@nestjs/swagger';
 import { UtilisateursService } from './utlisateurs.service';
 import { JwtAuthGuard }        from '../auth/Jwt-auth.guard';
-
+import { UpdateMedicalFormDto } from './dto/update-medical-form.dto';
 @ApiTags('👤 Profil utilisateur')
 @Controller('utilisateurs')
 @UseGuards(JwtAuthGuard)
@@ -63,6 +63,12 @@ export class UtilisateursController {
       body.nouveauMotDePasse,
     );
   }
+
+  @Patch('me')
+@UseGuards(JwtAuthGuard)
+async updateMe(@Request() req, @Body() dto: UpdateMedicalFormDto) {
+  return this.utilisateursService.updateMedicalForm(req.user, dto);
+}
 
   // DELETE /utilisateurs/compte
   @Delete('compte')

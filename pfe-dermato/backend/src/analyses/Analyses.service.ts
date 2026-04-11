@@ -13,6 +13,8 @@ import * as path            from 'path';
 import * as crypto          from 'crypto';
 import { Analyse }          from './analyse.entity';
 
+import { Between } from 'typeorm';
+
 @Injectable()
 export class AnalysesService {
   constructor(
@@ -98,13 +100,12 @@ export class AnalysesService {
         conseils:         resultatIA.conseils ?? '',
       });
 
-    } catch (error) {
-      // En cas d'erreur du microservice IA
-      await this.analyseRepo.update(analyseId, {
-        statut:       'erreur',
-        messageErreur: error?.message ?? 'Analyse impossible — réessayez plus tard',
-      });
-    }
+    } catch (error: any) {
+  await this.analyseRepo.update(analyseId, {
+    statut: 'erreur',
+    messageErreur: error?.message ?? 'Analyse impossible — réessayez plus tard',
+  });
+}
   }
 
   // ── 3. Déterminer le niveau d'urgence ────────────────────
@@ -161,6 +162,68 @@ export class AnalysesService {
     return { message: `Analyse #${id} supprimée` };
   }
 
+async getDashboardData(userId: number) {
+  const now = new Date();
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const totalAnalyses = await this.analyseRepo.count({
+    where: {
+      utilisateurId: userId,
+      supprime: false,
+    },
+  });
+
+  const analysesCeMois = await this.analyseRepo.count({
+    where: {
+      utilisateurId: userId,
+      supprime: false,
+      creeLe: Between(startOfMonth, endOfMonth),
+    },
+  });
+
+  const recent = await this.analyseRepo.find({
+    where: {
+      utilisateurId: userId,
+      supprime: false,
+    },
+    order: {
+      creeLe: 'DESC',
+    },
+    take: 5,
+    select: [
+      'id',
+      'creeLe',
+      'classePredite',
+      'scoreConfiance',
+      'imageMiniature',
+      'niveauUrgence',
+      'statut',
+    ],
+  });
+
+  const recentAnalyses = recent.map((item) => ({
+    id: item.id,
+    date: item.creeLe,
+    title: item.classePredite || 'Analyse dermatologique',
+    confidence: item.scoreConfiance || 0,
+    tag:
+      item.niveauUrgence === 'urgence'
+        ? 'À vérifier'
+        : item.niveauUrgence === 'consulter'
+        ? 'Suivi conseillé'
+        : 'Faible risque',
+    imageUrl: item.imageMiniature || '',
+  }));
+
+  return {
+    totalAnalyses,
+    analysesCeMois,
+    scoreSante: 94,
+    recentAnalyses,
+  };
+}
   // ── 7. Résultat d'une analyse (polling depuis le mobile) ──
   // Le mobile appelle cette route toutes les 2s jusqu'à statut = "termine"
   async statut(id: number, utilisateurId: number) {

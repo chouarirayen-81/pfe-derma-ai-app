@@ -1,10 +1,11 @@
 // backend/src/conseils/conseils.controller.ts
 import {
   Controller, Get, Post, Put, Delete,
-  Param, Body, UseGuards, ParseIntPipe,
+  Param, Body, UseGuards, ParseIntPipe, Query,
 } from '@nestjs/common';
 import { ConseilsService } from './Conseils.service';
 import { JwtAuthGuard } from '../auth/Jwt-auth.guard';
+
 
 @Controller('conseils') // → /conseils
 export class ConseilsController {
@@ -56,6 +57,12 @@ export class ConseilsController {
   ) {
     return this.conseilsService.update(id, body);
   }
+
+@Get('tips')
+async getTips(@Query('limit') limit: string = '3') {
+  const parsedLimit = Number(limit) || 3;
+  return this.conseilsService.getTips(parsedLimit);
+}
 
   // DELETE /conseils/:id
   // → Supprimer un conseil (admin)

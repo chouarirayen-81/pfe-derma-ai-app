@@ -1,30 +1,35 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'expo-router';
 import {
   View, Text, ScrollView, TouchableOpacity, Image,
-  TextInput, StyleSheet, SafeAreaView, StatusBar, Alert,
+  TextInput, StyleSheet, SafeAreaView, StatusBar, Alert, Modal,
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { getAllAnalyses, deleteAnalysis } from '@/backend/src/api/analysis';
 
-type TabId = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
+type TabId    = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
 type FilterId = 'toutes' | 'ce_mois' | 'en_attente';
+type SortId   = 'date_desc' | 'date_asc' | 'confiance_desc' | 'gravite';
 
 interface AnalysisItem {
   id: number; date: string; title: string;
-  confidence: number; color: string; img: string; status: 'done' | 'pending';
+  confidence: number; color: string; img: string;
+  status: 'done' | 'pending'; urgence: string; rawDate: Date;
 }
-
-const allAnalyses: AnalysisItem[] = [
-  { id:1, date:'3 février 2026',   title:'Eczéma léger',       confidence:87, color:'#10b981', img:'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop', status:'done' },
-  { id:2, date:'2 janvier 2026',   title:'Acné modérée',       confidence:92, color:'#f59e0b', img:'https://images.unsplash.com/photo-1559181567-c3190ca9be46?w=120&h=120&fit=crop', status:'done' },
-  { id:3, date:'28 décembre 2025', title:'Réaction allergique', confidence:76, color:'#6366f1', img:'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=120&h=120&fit=crop', status:'done' },
-  { id:4, date:'10 décembre 2025', title:'Dermatite contact',  confidence:81, color:'#ef4444', img:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=120&h=120&fit=crop', status:'pending' },
-];
 
 const C = {
   primary:'#00C6A7', primary2:'#00957D', secondary:'#FF6B4A',
   bg:'#F0F6F4', card:'#FFFFFF', text:'#0D2B22',
-  light:'#7A9E95', textLight:'#7A9E95', inactive:'#C5D9D5', border:'#EEF5F3',
+  light:'#7A9E95', inactive:'#C5D9D5', border:'#EEF5F3',
+};
+
+// ─── ROUTES MAP — source unique de vérité ─────────────────────────────────────
+const TAB_ROUTES: Record<TabId, string> = {
+  accueil:    '/(tabs)/acceuil',
+  historique: '/(tabs)/historique',
+  scan:       '/(tabs)/scan',
+  conseils:   '/(tabs)/conseil',
+  profil:     '/(tabs)/profile',
 };
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -36,6 +41,11 @@ const IconBack = () => (
 const IconFilter = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M22 3H2l8 9.46V19l4 2v-7.54L22 3z" stroke={C.text} strokeWidth={2} strokeLinejoin="round"/>
+  </Svg>
+);
+const IconSort = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path d="M3 6h18M7 12h10M11 18h2" stroke={C.text} strokeWidth={2} strokeLinecap="round"/>
   </Svg>
 );
 const IconSearch = () => (
@@ -60,13 +70,19 @@ const IconCalendar = () => (
     <Path d="M16 2v4M8 2v4M3 10h18" stroke={C.light} strokeWidth={2} strokeLinecap="round"/>
   </Svg>
 );
-
-// ─── Navbar icons (same as HomeScreen) ───────────────────────────────────────
+const IconCheck = () => (
+  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+    <Path d="M20 6L9 17l-5-5" stroke={C.primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
+  </Svg>
+);
+const IconX = () => (
+  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+    <Path d="M18 6L6 18M6 6l12 12" stroke={C.text} strokeWidth={2} strokeLinecap="round"/>
+  </Svg>
+);
 const IconHome = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M3 12L12 3l9 9v9H15v-5H9v5H3v-9z"
-      stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinejoin="round"
-      fill={active ? C.primary+'22' : 'none'}/>
+    <Path d="M3 12L12 3l9 9v9H15v-5H9v5H3v-9z" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinejoin="round" fill={active ? C.primary+'22' : 'none'}/>
   </Svg>
 );
 const IconClock = ({ active }: { active: boolean }) => (
@@ -77,8 +93,7 @@ const IconClock = ({ active }: { active: boolean }) => (
 );
 const IconBulb = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 2a7 7 0 00-3.5 13.07V17a1 1 0 001 1h5a1 1 0 001-1v-1.93A7 7 0 0012 2z"
-      stroke={active ? C.primary : C.inactive} strokeWidth={2} fill={active ? C.primary+'22' : 'none'}/>
+    <Path d="M12 2a7 7 0 00-3.5 13.07V17a1 1 0 001 1h5a1 1 0 001-1v-1.93A7 7 0 0012 2z" stroke={active ? C.primary : C.inactive} strokeWidth={2} fill={active ? C.primary+'22' : 'none'}/>
     <Path d="M10 21h4" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinecap="round"/>
   </Svg>
 );
@@ -95,61 +110,131 @@ const IconCamera = () => (
   </Svg>
 );
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Helper couleur ───────────────────────────────────────────────────────────
+const getColor = (urgence: string) =>
+  urgence === 'rassurant' ? '#10b981' : urgence === 'consulter' ? '#f59e0b' : '#ef4444';
+
+// ─── Composant Principal ──────────────────────────────────────────────────────
 export default function HistoriqueScreen() {
-  // ✅ Same pattern as HomeScreen
   const router   = useRouter();
   const pathname = usePathname();
 
-  const [search, setSearch]             = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterId>('toutes');
-  const [analyses, setAnalyses]         = useState<AnalysisItem[]>(allAnalyses);
+  const [analyses,      setAnalyses]      = useState<AnalysisItem[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState('');
+  const [activeFilter,  setActiveFilter]  = useState<FilterId>('toutes');
+  const [activeSort,    setActiveSort]    = useState<SortId>('date_desc');
+  const [showSortModal, setShowSortModal] = useState(false);
 
-  // ✅ Exact same isActive logic as HomeScreen
+  // ─── Navigation ─────────────────────────────────────────────────────────────
   const isActive = (tabId: TabId): boolean => {
-  if (tabId === 'accueil')    return pathname === '/(tabs)' || pathname === '/(tabs)/acceuil';
-  if (tabId === 'historique') return pathname.startsWith('/(tabs)/historique');
-  if (tabId === 'scan')       return pathname.startsWith('/(tabs)/scan');
-  if (tabId === 'conseils')   return pathname.startsWith('/(tabs)/conseil');
-  if (tabId === 'profil')     return pathname.startsWith('/(tabs)/profile');
-  return false;
-};
-  // ✅ Exact same goTab logic as HomeScreen
+    const route = TAB_ROUTES[tabId];
+    if (tabId === 'accueil') {
+      return pathname === '/(tabs)' || pathname === TAB_ROUTES.accueil;
+    }
+    return pathname.startsWith(route);
+  };
+
+  // ✅ FIX PRINCIPAL : router.navigate() reste dans le stack authentifié.
+  //    On ignore le clic si on est déjà sur l'onglet actif.
   const goTab = (tabId: TabId) => {
-    switch (tabId) {
-      case 'accueil':    router.push('/acceuil');         break;
-      case 'historique': router.push('/historique');     break;
-      case 'scan':       router.push('/scan');    break;
-      case 'conseils':   router.push('/conseil');    break;
-      case 'profil':     router.push('/profile'); break;
+    if (isActive(tabId)) return;
+    router.navigate(TAB_ROUTES[tabId] as any);
+  };
+
+  // ─── Chargement depuis backend ───────────────────────────────────────────────
+  useEffect(() => {
+    loadAnalyses();
+  }, []);
+
+  const loadAnalyses = async () => {
+    try {
+      const res = await getAllAnalyses();
+      setAnalyses(
+        res.data.map((a: any) => ({
+          id:         a.id,
+          rawDate:    new Date(a.creeLe),
+          date:       new Date(a.creeLe).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'long', year: 'numeric'
+                      }),
+          title:      a.classePredite || 'Analyse dermatologique',
+          confidence: Math.round(a.scoreConfiance || 0),
+          color:      getColor(a.niveauUrgence),
+          urgence:    a.niveauUrgence || 'rassurant',
+          img:        a.imageMiniature || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop',
+          status:     a.statut === 'termine' ? 'done' : 'pending',
+        }))
+      );
+    } catch (err) {
+      console.log('Erreur historique:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-
-  const totalCount     = analyses.length;
-  const thisMonthCount = analyses.filter(a => a.date.includes('2026') && a.status === 'done').length;
-  const pendingCount   = analyses.filter(a => a.status === 'pending').length;
+  // ─── Filtrage ────────────────────────────────────────────────────────────────
+  const now          = new Date();
+  const currentYear  = now.getFullYear();
+  const currentMonth = now.getMonth();
 
   const filtered = analyses.filter(a => {
     const matchSearch = a.title.toLowerCase().includes(search.toLowerCase());
-    if (activeFilter === 'ce_mois')    return matchSearch && a.date.includes('2026');
+    if (activeFilter === 'ce_mois')    return matchSearch && a.rawDate.getFullYear() === currentYear && a.rawDate.getMonth() === currentMonth;
     if (activeFilter === 'en_attente') return matchSearch && a.status === 'pending';
     return matchSearch;
   });
 
+  // ─── Tri ─────────────────────────────────────────────────────────────────────
+  const sorted = [...filtered].sort((a, b) => {
+    if (activeSort === 'date_desc')      return b.rawDate.getTime() - a.rawDate.getTime();
+    if (activeSort === 'date_asc')       return a.rawDate.getTime() - b.rawDate.getTime();
+    if (activeSort === 'confiance_desc') return b.confidence - a.confidence;
+    if (activeSort === 'gravite') {
+      const order = { urgence: 0, consulter: 1, rassurant: 2 };
+      return (order[a.urgence as keyof typeof order] ?? 2) - (order[b.urgence as keyof typeof order] ?? 2);
+    }
+    return 0;
+  });
+
+  // ─── Stats ───────────────────────────────────────────────────────────────────
+  const totalCount     = analyses.length;
+  const thisMonthCount = analyses.filter(a =>
+    a.rawDate.getFullYear() === currentYear && a.rawDate.getMonth() === currentMonth
+  ).length;
+  const pendingCount   = analyses.filter(a => a.status === 'pending').length;
+
+  const statCards = [
+    { label:'Total',      value:totalCount,     id:'toutes'     as FilterId, accentColor:C.primary },
+    { label:'Ce mois',    value:thisMonthCount, id:'ce_mois'    as FilterId, accentColor:C.primary },
+    { label:'En attente', value:pendingCount,   id:'en_attente' as FilterId, accentColor:'#f59e0b' },
+  ];
+
+  const sortOptions: { id: SortId; label: string; icon: string }[] = [
+    { id:'date_desc',      label:'Date (récent → ancien)',      icon:'📅' },
+    { id:'date_asc',       label:'Date (ancien → récent)',      icon:'📅' },
+    { id:'confiance_desc', label:'Confiance (haute → basse)',   icon:'📊' },
+    { id:'gravite',        label:'Gravité (urgence en premier)', icon:'⚠️' },
+  ];
+
+  // ─── Suppression ─────────────────────────────────────────────────────────────
   const handleDelete = (id: number) => {
     Alert.alert('Supprimer', 'Voulez-vous supprimer cette analyse ?', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive',
-        onPress: () => setAnalyses(prev => prev.filter(a => a.id !== id)) },
+      {
+        text: 'Supprimer', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteAnalysis(id);
+            setAnalyses(prev => prev.filter(a => a.id !== id));
+          } catch {
+            Alert.alert('Erreur', 'Impossible de supprimer');
+          }
+        }
+      },
     ]);
   };
 
-  const statCards = [
-    { label:'Total',       value:totalCount,     id:'toutes'      as FilterId, accentColor:C.primary },
-    { label:'Ce mois',     value:thisMonthCount, id:'ce_mois'     as FilterId, accentColor:C.primary },
-    { label:'En attente',  value:pendingCount,   id:'en_attente'  as FilterId, accentColor:'#f59e0b' },
-  ];
+  const sortLabel = sortOptions.find(s => s.id === activeSort)?.label || 'Trier';
 
   return (
     <SafeAreaView style={s.safe}>
@@ -157,16 +242,24 @@ export default function HistoriqueScreen() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        {/* ✅ FIX BACK : navigate vers accueil au lieu de router.back()
+            router.back() peut remonter vers login si l'historique de navigation est vide.
+            On navigue explicitement vers l'accueil — toujours dans la zone authentifiée. */}
+        <TouchableOpacity
+          style={s.headerBtn}
+          onPress={() => goTab('accueil')}
+          activeOpacity={0.7}
+        >
           <IconBack/>
         </TouchableOpacity>
+
         <Text style={s.headerTitle}>Historique</Text>
-        <TouchableOpacity style={s.headerBtn} activeOpacity={0.7}>
-          <IconFilter/>
+
+        <TouchableOpacity style={s.headerBtn} onPress={() => setShowSortModal(true)} activeOpacity={0.7}>
+          <IconSort/>
         </TouchableOpacity>
       </View>
 
-      {/* SCROLL */}
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* SEARCH */}
@@ -176,6 +269,13 @@ export default function HistoriqueScreen() {
             placeholderTextColor={C.light} value={search} onChangeText={setSearch}/>
         </View>
 
+        {/* TRI ACTIF — badge */}
+        <TouchableOpacity style={s.sortBadge} onPress={() => setShowSortModal(true)} activeOpacity={0.8}>
+          <IconFilter/>
+          <Text style={s.sortBadgeTxt} numberOfLines={1}>{sortLabel}</Text>
+          <Text style={s.sortBadgeChevron}>›</Text>
+        </TouchableOpacity>
+
         {/* FILTER STATS */}
         <View style={s.statsRow}>
           {statCards.map((st) => {
@@ -183,10 +283,9 @@ export default function HistoriqueScreen() {
             const isPending = st.id === 'en_attente';
             return (
               <TouchableOpacity key={st.id}
-              
                 style={[s.statCard, active && s.statCardActive,
                   active && isPending && { borderColor:'#f59e0b', backgroundColor:'#fffbeb' }]}
-                onPress={() => router.push('/suithistorique')} activeOpacity={0.8}>
+                onPress={() => setActiveFilter(st.id)} activeOpacity={0.8}>
                 <Text style={[s.statValue, active && { color: st.accentColor }]}>{st.value}</Text>
                 <Text style={[s.statLabel, active && { color: st.accentColor }]}>{st.label}</Text>
               </TouchableOpacity>
@@ -197,23 +296,33 @@ export default function HistoriqueScreen() {
         {/* LIST HEADER */}
         <View style={s.listHeader}>
           <Text style={s.listTitle}>Toutes les analyses</Text>
-          <Text style={s.listCount}>{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</Text>
+          <Text style={s.listCount}>{sorted.length} résultat{sorted.length > 1 ? 's' : ''}</Text>
         </View>
 
         {/* LIST */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <View style={s.emptyWrap}>
+            <Text style={s.emptyText}>Chargement...</Text>
+          </View>
+        ) : sorted.length === 0 ? (
           <View style={s.emptyWrap}>
             <Text style={s.emptyEmoji}>🔍</Text>
             <Text style={s.emptyText}>Aucune analyse trouvée</Text>
           </View>
-        ) : filtered.map((item) => (
+        ) : sorted.map((item) => (
           <View key={item.id} style={s.cardWrap}>
-            <TouchableOpacity style={s.card} activeOpacity={0.82}>
+            <TouchableOpacity style={s.card} activeOpacity={0.82}
+              onPress={() => router.navigate(`/(tabs)/analysescan?id=${item.id}` as any)}>
               <Image source={{ uri: item.img }} style={s.cardImg}/>
               <View style={{ flex:1 }}>
                 <View style={s.cardTopRow}>
                   <IconCalendar/>
                   <Text style={s.cardDate}>{item.date}</Text>
+                  {item.urgence === 'urgence' && (
+                    <View style={s.urgenceBadge}>
+                      <Text style={s.urgenceTxt}>⚠ Urgent</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={s.cardTitle}>{item.title}</Text>
                 <View style={[s.confidenceBadge, { backgroundColor: item.color+'18' }]}>
@@ -231,7 +340,7 @@ export default function HistoriqueScreen() {
         ))}
       </ScrollView>
 
-      {/* BOTTOM NAVBAR — exact same structure as HomeScreen */}
+      {/* BOTTOM NAVBAR */}
       <View style={s.navbar}>
         {([
           { id:'accueil',    label:'Accueil',    Icon:IconHome  },
@@ -242,9 +351,11 @@ export default function HistoriqueScreen() {
         ] as any[]).map((tab) => {
           const active = isActive(tab.id);
           if (tab.fab) return (
-            <TouchableOpacity key="scan" style={s.fabWrap} onPress={() => goTab('scan')} activeOpacity={0.85}>
-              <View style={s.fab}><IconCamera/></View>
-            </TouchableOpacity>
+            <View key="scan" style={s.fabWrap}>
+              <TouchableOpacity style={s.fab} onPress={() => goTab('scan')} activeOpacity={0.85}>
+                <IconCamera/>
+              </TouchableOpacity>
+            </View>
           );
           const Icon = tab.Icon;
           return (
@@ -256,56 +367,89 @@ export default function HistoriqueScreen() {
           );
         })}
       </View>
+
+      {/* MODAL TRI */}
+      <Modal visible={showSortModal} animationType="slide" transparent onRequestClose={() => setShowSortModal(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle}/>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Trier par</Text>
+              <TouchableOpacity onPress={() => setShowSortModal(false)} activeOpacity={0.7}>
+                <IconX/>
+              </TouchableOpacity>
+            </View>
+            {sortOptions.map((opt) => {
+              const selected = activeSort === opt.id;
+              return (
+                <TouchableOpacity key={opt.id}
+                  style={[s.sortOption, selected && s.sortOptionActive]}
+                  onPress={() => { setActiveSort(opt.id); setShowSortModal(false); }}
+                  activeOpacity={0.8}>
+                  <Text style={s.sortOptionIcon}>{opt.icon}</Text>
+                  <Text style={[s.sortOptionLabel, selected && { color: C.primary, fontWeight:'800' }]}>{opt.label}</Text>
+                  {selected && <IconCheck/>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:          { flex:1, backgroundColor:C.bg },
-  scroll:        { flex:1 },
-  scrollContent: { paddingBottom:28 },
-
-  header:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', backgroundColor:C.card, paddingHorizontal:18, paddingVertical:16, borderBottomWidth:1, borderBottomColor:C.border },
-  headerBtn:   { width:40, height:40, borderRadius:12, backgroundColor:C.bg, alignItems:'center', justifyContent:'center' },
-  headerTitle: { fontSize:18, fontWeight:'800', color:C.text, letterSpacing:-0.3 },
-
-  searchWrap:  { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:C.card, borderRadius:16, marginHorizontal:18, marginTop:18, paddingHorizontal:16, paddingVertical:13, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.05, shadowRadius:8, elevation:3 },
-  searchInput: { flex:1, fontSize:14, color:C.text, padding:0 },
-
-  statsRow:      { flexDirection:'row', gap:10, marginHorizontal:18, marginTop:14 },
-  statCard:      { flex:1, backgroundColor:C.card, borderRadius:16, padding:14, alignItems:'center', borderWidth:2, borderColor:'transparent', shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.04, shadowRadius:6, elevation:2 },
-  statCardActive:{ borderColor:C.primary, backgroundColor:'#f0fdfb' },
-  statValue:     { fontSize:22, fontWeight:'800', color:C.text },
-  statLabel:     { fontSize:11, color:C.light, marginTop:3, fontWeight:'600' },
-
-  listHeader: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginHorizontal:18, marginTop:22, marginBottom:14 },
-  listTitle:  { fontSize:17, fontWeight:'800', color:C.text },
-  listCount:  { fontSize:13, color:C.light, fontWeight:'600' },
-
-  cardWrap:  { marginHorizontal:18, marginBottom:4 },
-  card:      { flexDirection:'row', alignItems:'center', gap:14, backgroundColor:C.card, borderRadius:20, padding:14, shadowColor:'#000', shadowOffset:{width:0,height:3}, shadowOpacity:0.07, shadowRadius:10, elevation:4 },
-  cardImg:   { width:62, height:62, borderRadius:16 },
-  cardTopRow:{ flexDirection:'row', alignItems:'center', gap:5, marginBottom:4 },
-  cardDate:  { fontSize:11, color:C.light, fontWeight:'500' },
-  cardTitle: { fontSize:15, fontWeight:'800', color:C.text, marginBottom:7 },
-  confidenceBadge:{ flexDirection:'row', alignItems:'center', gap:5, alignSelf:'flex-start', borderRadius:8, paddingHorizontal:8, paddingVertical:4 },
-  confidenceDot:  { width:6, height:6, borderRadius:3 },
-  confidenceTxt:  { fontSize:12, fontWeight:'700' },
-
-  deleteBtn: { flexDirection:'row', alignItems:'center', gap:5, alignSelf:'flex-end', paddingVertical:8, paddingHorizontal:4, marginTop:2, marginBottom:8 },
-  deleteTxt: { fontSize:12, color:'#ef4444', fontWeight:'600' },
-
-  emptyWrap: { alignItems:'center', paddingTop:60 },
-  emptyEmoji:{ fontSize:48 },
-  emptyText: { fontSize:15, color:C.light, marginTop:12, fontWeight:'600' },
-
-  // Navbar — copy of HomeScreen
-  navbar:        { flexDirection:'row', alignItems:'center', backgroundColor:C.card, borderTopWidth:1, borderTopColor:C.border, height:74, paddingHorizontal:8, shadowColor:'#000', shadowOffset:{width:0,height:-4}, shadowOpacity:0.07, shadowRadius:14, elevation:14 },
-  tabItem:       { flex:1, alignItems:'center', justifyContent:'center', paddingVertical:6, gap:4, position:'relative' },
-  tabActiveBg:   { position:'absolute', top:4, width:44, height:32, borderRadius:12, backgroundColor:C.primary+'18' },
-  tabLabel:      { fontSize:10, fontWeight:'600', color:C.inactive },
-  tabLabelActive:{ color:C.primary },
-  fabWrap:       { flex:1, alignItems:'center', justifyContent:'center', marginTop:-26 },
-  fab:           { width:62, height:62, borderRadius:31, backgroundColor:C.primary, alignItems:'center', justifyContent:'center', borderWidth:4, borderColor:C.card, shadowColor:C.primary, shadowOffset:{width:0,height:8}, shadowOpacity:0.5, shadowRadius:14, elevation:12 },
+  safe:            { flex:1, backgroundColor:C.bg },
+  scroll:          { flex:1 },
+  scrollContent:   { paddingBottom:28 },
+  header:          { flexDirection:'row', alignItems:'center', justifyContent:'space-between', backgroundColor:C.card, paddingHorizontal:18, paddingVertical:16, borderBottomWidth:1, borderBottomColor:C.border },
+  headerBtn:       { width:40, height:40, borderRadius:12, backgroundColor:C.bg, alignItems:'center', justifyContent:'center' },
+  headerTitle:     { fontSize:18, fontWeight:'800', color:C.text, letterSpacing:-0.3 },
+  searchWrap:      { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:C.card, borderRadius:16, marginHorizontal:18, marginTop:18, paddingHorizontal:16, paddingVertical:13, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.05, shadowRadius:8, elevation:3 },
+  searchInput:     { flex:1, fontSize:14, color:C.text, padding:0 },
+  sortBadge:       { flexDirection:'row', alignItems:'center', gap:8, marginHorizontal:18, marginTop:12, backgroundColor:C.card, borderRadius:12, paddingHorizontal:14, paddingVertical:10, borderWidth:1.5, borderColor:C.border },
+  sortBadgeTxt:    { flex:1, fontSize:13, color:C.light, fontWeight:'600' },
+  sortBadgeChevron:{ fontSize:18, color:C.light },
+  statsRow:        { flexDirection:'row', gap:10, marginHorizontal:18, marginTop:14 },
+  statCard:        { flex:1, backgroundColor:C.card, borderRadius:16, padding:14, alignItems:'center', borderWidth:2, borderColor:'transparent', shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.04, shadowRadius:6, elevation:2 },
+  statCardActive:  { borderColor:C.primary, backgroundColor:'#f0fdfb' },
+  statValue:       { fontSize:22, fontWeight:'800', color:C.text },
+  statLabel:       { fontSize:11, color:C.light, marginTop:3, fontWeight:'600' },
+  listHeader:      { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginHorizontal:18, marginTop:22, marginBottom:14 },
+  listTitle:       { fontSize:17, fontWeight:'800', color:C.text },
+  listCount:       { fontSize:13, color:C.light, fontWeight:'600' },
+  cardWrap:        { marginHorizontal:18, marginBottom:4 },
+  card:            { flexDirection:'row', alignItems:'center', gap:14, backgroundColor:C.card, borderRadius:20, padding:14, shadowColor:'#000', shadowOffset:{width:0,height:3}, shadowOpacity:0.07, shadowRadius:10, elevation:4 },
+  cardImg:         { width:62, height:62, borderRadius:16 },
+  cardTopRow:      { flexDirection:'row', alignItems:'center', gap:5, marginBottom:4 },
+  cardDate:        { fontSize:11, color:C.light, fontWeight:'500' },
+  cardTitle:       { fontSize:15, fontWeight:'800', color:C.text, marginBottom:7 },
+  urgenceBadge:    { marginLeft:'auto', backgroundColor:'#fee2e2', borderRadius:6, paddingHorizontal:7, paddingVertical:2 },
+  urgenceTxt:      { fontSize:10, color:'#ef4444', fontWeight:'700' },
+  confidenceBadge: { flexDirection:'row', alignItems:'center', gap:5, alignSelf:'flex-start', borderRadius:8, paddingHorizontal:8, paddingVertical:4 },
+  confidenceDot:   { width:6, height:6, borderRadius:3 },
+  confidenceTxt:   { fontSize:12, fontWeight:'700' },
+  deleteBtn:       { flexDirection:'row', alignItems:'center', gap:5, alignSelf:'flex-end', paddingVertical:8, paddingHorizontal:4, marginTop:2, marginBottom:8 },
+  deleteTxt:       { fontSize:12, color:'#ef4444', fontWeight:'600' },
+  emptyWrap:       { alignItems:'center', paddingTop:60 },
+  emptyEmoji:      { fontSize:48 },
+  emptyText:       { fontSize:15, color:C.light, marginTop:12, fontWeight:'600' },
+  navbar:          { flexDirection:'row', alignItems:'center', backgroundColor:C.card, borderTopWidth:1, borderTopColor:C.border, height:74, paddingHorizontal:8, shadowColor:'#000', shadowOffset:{width:0,height:-4}, shadowOpacity:0.07, shadowRadius:14, elevation:14 },
+  tabItem:         { flex:1, alignItems:'center', justifyContent:'center', paddingVertical:6, gap:4, position:'relative' },
+  tabActiveBg:     { position:'absolute', top:4, width:44, height:32, borderRadius:12, backgroundColor:C.primary+'18' },
+  tabLabel:        { fontSize:10, fontWeight:'600', color:C.inactive },
+  tabLabelActive:  { color:C.primary },
+  fabWrap:         { flex:1, alignItems:'center', justifyContent:'center', marginTop:-26 },
+  fab:             { width:62, height:62, borderRadius:31, backgroundColor:C.primary, alignItems:'center', justifyContent:'center', borderWidth:4, borderColor:C.card, shadowColor:C.primary, shadowOffset:{width:0,height:8}, shadowOpacity:0.5, shadowRadius:14, elevation:12 },
+  modalOverlay:    { flex:1, backgroundColor:'rgba(0,0,0,0.5)', justifyContent:'flex-end' },
+  modalSheet:      { backgroundColor:C.card, borderTopLeftRadius:28, borderTopRightRadius:28, paddingBottom:40, paddingTop:16, paddingHorizontal:20 },
+  modalHandle:     { width:40, height:4, backgroundColor:'#e0e0e0', borderRadius:2, alignSelf:'center', marginBottom:20 },
+  modalHeader:     { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:20 },
+  modalTitle:      { fontSize:18, fontWeight:'900', color:C.text },
+  sortOption:      { flexDirection:'row', alignItems:'center', gap:14, padding:16, borderRadius:14, marginBottom:8, backgroundColor:C.bg },
+  sortOptionActive:{ backgroundColor:C.primary+'15', borderWidth:1.5, borderColor:C.primary+'44' },
+  sortOptionIcon:  { fontSize:18 },
+  sortOptionLabel: { flex:1, fontSize:15, color:C.text, fontWeight:'600' },
 });

@@ -21,6 +21,13 @@ import { JwtAuthGuard }    from '../auth/Jwt-auth.guard';
 export class AnalysesController {
   constructor(private analysesService: AnalysesService) {}
 
+  @Get('dashboard')
+@UseGuards(JwtAuthGuard)
+async getDashboard(@Request() req) {
+  const userId = req.user.userId || req.user.sub;
+  return this.analysesService.getDashboardData(userId);
+}
+
   // POST /analyses — envoyer une image pour analyse IA
   @Post()
   @UseInterceptors(FileInterceptor('image'))

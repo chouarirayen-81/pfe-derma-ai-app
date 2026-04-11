@@ -8,6 +8,8 @@ import { Repository }       from 'typeorm';
 import * as bcrypt          from 'bcrypt';
 import { Utilisateur }      from './utilisateur.entity';
 
+import { UpdateMedicalFormDto } from './dto/update-medical-form.dto';
+
 @Injectable()
 export class UtilisateursService {
   constructor(
@@ -24,19 +26,19 @@ export class UtilisateursService {
 
   // ── Modifier le profil ────────────────────────────────────
   async modifierProfil(
-    id: number,
-    data: {
-      nom?:       string;
-      prenom?:    string;
-      age?:       number;
-      sexe?:      string;
-      telephone?: string;
-      allergies?: string;
-    },
-  ): Promise<Utilisateur> {
-    await this.utilisateurRepo.update(id, data);
-    return this.findById(id);
-  }
+  id: number,
+  data: {
+    nom?: string;
+    prenom?: string;
+    age?: number;
+    sexe?: 'homme' | 'femme' | 'autre';
+    telephone?: string;
+    allergies?: string;
+  },
+): Promise<Utilisateur> {
+  await this.utilisateurRepo.update(id, data);
+  return this.findById(id);
+}
 
   // ── Changer le mot de passe ───────────────────────────────
   async changerMotDePasse(
@@ -60,7 +62,35 @@ export class UtilisateursService {
 
     return { message: 'Mot de passe modifié avec succès' };
   }
+async updateMedicalForm(user: any, dto: UpdateMedicalFormDto) {
+  const userId = user.userId || user.sub;
 
+  const utilisateur = await this.utilisateurRepo.findOne({
+    where: { id: userId },
+  });
+
+  if (!utilisateur) {
+    throw new Error('Utilisateur introuvable');
+  }
+
+  if (dto.nomComplet) {
+    const parts = dto.nomComplet.trim().split(' ');
+    utilisateur.prenom = parts[0] || utilisateur.prenom;
+    utilisateur.nom = parts.slice(1).join(' ') || utilisateur.nom;
+  }
+
+  if (dto.age !== undefined) utilisateur.age = dto.age;
+  if (dto.sexe !== undefined) utilisateur.sexe = dto.sexe as any;
+  if (dto.antecedents !== undefined) utilisateur.antecedents = dto.antecedents;
+  if (dto.allergies !== undefined) utilisateur.allergies = dto.allergies;
+  if (dto.traitements !== undefined) utilisateur.traitements = dto.traitements;
+  if (dto.dureeLesion !== undefined) utilisateur.dureeLesion = dto.dureeLesion;
+  if (dto.symptomes !== undefined) utilisateur.symptomes = dto.symptomes;
+  if (dto.zoneCorps !== undefined) utilisateur.zoneCorps = dto.zoneCorps;
+  if (dto.observation !== undefined) utilisateur.observation = dto.observation;
+
+  return await this.utilisateurRepo.save(utilisateur);
+}
   // ── Supprimer le compte ───────────────────────────────────
   async supprimerCompte(id: number): Promise<{ message: string }> {
     await this.utilisateurRepo.update(id, { actif: false });

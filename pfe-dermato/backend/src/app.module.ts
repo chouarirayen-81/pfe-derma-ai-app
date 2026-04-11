@@ -41,13 +41,14 @@ import { AppController } from './app.controller';
           Notification,
           RefreshToken,
           LogAudit,
+         
         ],
         synchronize: false,
         logging: config.get<string>('NODE_ENV') === 'development',
         charset: 'utf8mb4',
       }),
     }),
-
+   
     AuthModule,
     UtilisateursModule,
     AnalysesModule,

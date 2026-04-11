@@ -29,6 +29,17 @@ export class ConseilsService {
     });
   }
 
+
+  async getTips(limit: number) {
+  return this.conseilRepo.find({
+    where: { type: 'information' },
+    order: { ordre: 'ASC' },
+    take: limit,
+    select: ['id', 'titre', 'valeur', 'emoji'],
+  });
+}
+
+
   // ── Détail d'un conseil ──
   async findOne(id: number): Promise<Conseil> {
     const conseil = await this.conseilRepo.findOne({

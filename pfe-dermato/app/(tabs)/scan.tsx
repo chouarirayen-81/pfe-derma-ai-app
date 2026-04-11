@@ -1,16 +1,19 @@
-// ─── ÉCRAN 1 : scan.tsx — Conseils pour une bonne photo ──────────────────────
-import React from 'react';
+// ─── ÉCRAN 1 : scan.tsx — Conseils + accès caméra/galerie ────────────────────
+import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar,
+  View, Text, TouchableOpacity, StyleSheet,
+  SafeAreaView, StatusBar, Alert,
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
 
 const C = {
   primary: '#00C6A7', bg: '#F8FDFB', card: '#FFFFFF',
   text: '#0D2B22', light: '#7A9E95', border: '#EEF5F3',
 };
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconX = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M18 6L6 18M6 6l12 12" stroke={C.text} strokeWidth={2.2} strokeLinecap="round"/>
@@ -52,6 +55,92 @@ const tips = [
 
 export default function ScanTipsScreen() {
   const router = useRouter();
+  const [loadingCamera,  setLoadingCamera]  = useState(false);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+
+  // ✅ Ouvrir la CAMÉRA
+  const handleCamera = async () => {
+    try {
+      setLoadingCamera(true);
+
+      // Demander la permission caméra
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission refusée',
+          'Veuillez autoriser l\'accès à la caméra dans les paramètres de votre téléphone.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Ouvrir la caméra
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],       // carré pour centrer la lésion
+        quality: 0.85,
+        exif: false,          // ✅ supprime les métadonnées EXIF (confidentialité)
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        // ✅ Navigue vers preview avec l'URI de la photo
+        router.push({
+          pathname: '/(tabs)/preview',
+          params: { imageUri, source: 'camera' },
+        });
+      }
+
+    } catch (err) {
+      console.log('Erreur caméra:', err);
+      Alert.alert('Erreur', 'Impossible d\'accéder à la caméra');
+    } finally {
+      setLoadingCamera(false);
+    }
+  };
+
+  // ✅ Ouvrir la GALERIE
+  const handleGallery = async () => {
+    try {
+      setLoadingGallery(true);
+
+      // Demander la permission galerie
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission refusée',
+          'Veuillez autoriser l\'accès à la galerie dans les paramètres de votre téléphone.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Ouvrir la galerie
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        exif: false,          // ✅ supprime les métadonnées EXIF
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        // ✅ Navigue vers preview avec l'URI de la photo
+        router.push({
+          pathname: '/(tabs)/preview',
+          params: { imageUri, source: 'gallery' },
+        });
+      }
+
+    } catch (err) {
+      console.log('Erreur galerie:', err);
+      Alert.alert('Erreur', 'Impossible d\'accéder à la galerie');
+    } finally {
+      setLoadingGallery(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -60,7 +149,8 @@ export default function ScanTipsScreen() {
       {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.closeBtn}
-           onPress={() =>  router.push('/(tabs)/acceuil')} activeOpacity={0.7}>
+          onPress={() => router.push('/(tabs)/acceuil')}
+          activeOpacity={0.7}>
           <IconX/>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Nouvelle analyse</Text>
@@ -87,45 +177,55 @@ export default function ScanTipsScreen() {
 
       {/* FOOTER */}
       <View style={s.footer}>
-        {/* ✅ Route vers camera.tsx */}
-        <TouchableOpacity style={s.btnPrimary}
-          onPress={() => router.push('/(tabs)/camera')}
-          activeOpacity={0.88}>
+
+        {/* ✅ CAMÉRA */}
+        <TouchableOpacity
+          style={[s.btnPrimary, loadingCamera && { opacity: 0.7 }]}
+          onPress={handleCamera}
+          activeOpacity={0.88}
+          disabled={loadingCamera || loadingGallery}>
           <IconCamera/>
-          <Text style={s.btnPrimaryTxt}>Prendre une photo</Text>
+          <Text style={s.btnPrimaryTxt}>
+            {loadingCamera ? 'Ouverture...' : 'Prendre une photo'}
+          </Text>
         </TouchableOpacity>
 
-        {/* ✅ Route vers previewscan.tsx */}
-        <TouchableOpacity style={s.btnSecondary}
-          onPress={() => router.push('/preview')}
-          activeOpacity={0.88}>
+        {/* ✅ GALERIE */}
+        <TouchableOpacity
+          style={[s.btnSecondary, loadingGallery && { opacity: 0.7 }]}
+          onPress={handleGallery}
+          activeOpacity={0.88}
+          disabled={loadingCamera || loadingGallery}>
           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
             <Rect x={3}  y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
             <Rect x={14} y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
             <Rect x={14} y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
             <Rect x={3}  y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
           </Svg>
-          <Text style={s.btnSecondaryTxt}>Choisir depuis la galerie</Text>
+          <Text style={s.btnSecondaryTxt}>
+            {loadingGallery ? 'Ouverture...' : 'Choisir depuis la galerie'}
+          </Text>
         </TouchableOpacity>
+
       </View>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  safe:        { flex: 1, backgroundColor: C.bg },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   closeBtn:    { width: 40, height: 40, borderRadius: 12, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: C.text },
-  body:    { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
-  title:   { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.6, marginBottom: 10 },
-  subtitle:{ fontSize: 14, color: C.light, textAlign: 'center', lineHeight: 20, marginBottom: 36 },
-  tipsWrap:{ gap: 14 },
-  tipCard: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.card, borderRadius: 18, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 },
+  body:        { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
+  title:       { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.6, marginBottom: 10 },
+  subtitle:    { fontSize: 14, color: C.light, textAlign: 'center', lineHeight: 20, marginBottom: 36 },
+  tipsWrap:    { gap: 14 },
+  tipCard:     { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.card, borderRadius: 18, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 },
   tipIconWrap: { width: 52, height: 52, borderRadius: 16, backgroundColor: C.primary + '18', alignItems: 'center', justifyContent: 'center' },
-  tipTitle:{ fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 3 },
-  tipSub:  { fontSize: 13, color: C.light, lineHeight: 18 },
-  footer:  { paddingHorizontal: 24, paddingBottom: 32, gap: 12 },
+  tipTitle:    { fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 3 },
+  tipSub:      { fontSize: 13, color: C.light, lineHeight: 18 },
+  footer:      { paddingHorizontal: 24, paddingBottom: 32, gap: 12 },
   btnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 18, padding: 17, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8 },
   btnPrimaryTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
   btnSecondary:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.card, borderRadius: 18, padding: 16, borderWidth: 2, borderColor: C.primary },

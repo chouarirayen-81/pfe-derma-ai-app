@@ -6,6 +6,7 @@ import {
   StatusBar, Image, Dimensions,
 } from 'react-native';
 import Svg, { Path, Polyline } from 'react-native-svg';
+import { useLocalSearchParams } from 'expo-router';
 
 const { width: W } = Dimensions.get('window');
 const C = { primary: '#00C6A7' };
@@ -30,8 +31,12 @@ const IconRefresh = () => (
 
 export default function PreviewScanScreen() {
   const router = useRouter();
-
+  const { imageUri, source } = useLocalSearchParams<{
+    imageUri: string;
+    source: 'camera' | 'gallery';
+  }>();
   return (
+    
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor="#0D1117"/>
 
@@ -48,11 +53,8 @@ export default function PreviewScanScreen() {
 
       {/* IMAGE PREVIEW */}
       <View style={s.previewWrap}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&h=600&fit=crop' }}
-          style={[s.previewImg, { height: W - 48 }]}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: imageUri }} style={{ flex: 1 }}/>
+
         <View style={s.qualityBadge}>
           <View style={s.qualityDot}/>
           <Text style={s.qualityTxt}>Photo capturée</Text>

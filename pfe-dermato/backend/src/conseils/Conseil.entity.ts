@@ -9,6 +9,12 @@ import { Pathologie } from '../Pathologie/Pathologie.entity';
 @Entity('conseils')
 export class Conseil {
 
+  @Column({ nullable: true })
+valeur: string;  // ex: "8 verres/jour"
+
+@Column({ nullable: true })
+emoji: string;   // ex: "💧"
+
   @PrimaryGeneratedColumn()
   id: number;
 

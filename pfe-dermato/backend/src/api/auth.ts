@@ -39,11 +39,16 @@ export const registerUser = async (payload: {
 
 // ── LOGOUT ─────────────────────────────────────────────
 export const logoutUser = async () => {
-  await AsyncStorage.removeItem('token');
-  await AsyncStorage.removeItem('refreshToken');
-  await AsyncStorage.removeItem('user');
+  try {
+    await API.post('/auth/logout');
+  } catch (error) {
+    console.log('Erreur logout backend:', error);
+  } finally {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('refreshToken');
+    await AsyncStorage.removeItem('user');
+  }
 };
-
 // ── VÉRIFIER SI CONNECTÉ ───────────────────────────────
 export const getToken = async () => {
   return await AsyncStorage.getItem('token');

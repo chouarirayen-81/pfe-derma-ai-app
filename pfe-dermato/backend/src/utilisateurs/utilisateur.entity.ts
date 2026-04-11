@@ -2,99 +2,119 @@
 // TypeORM mappe automatiquement cette classe à la table MySQL `utilisateurs`
 
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, OneToMany,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Analyse }      from '../analyses/analyse.entity';
+import { Analyse } from '../analyses/analyse.entity';
 import { Notification } from '../notifications/notification.entity';
 import { RefreshToken } from '../auth/Refresh-token.entity';
 
-@Entity('utilisateurs') // ← nom exact de la table MySQL
+@Entity('utilisateurs')
 export class Utilisateur {
-
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ length: 100 })
-  nom: string;
+  nom!: string;
 
   @Column({ length: 100 })
-  prenom: string;
+  prenom!: string;
 
   @Column({ length: 180, unique: true })
-  email: string;
+  email!: string;
 
   @Column({ length: 20, nullable: true })
-  telephone: string;
+  telephone?: string;
 
   @Column({ name: 'password_hash', length: 255 })
-  @Exclude() // ← ne jamais renvoyer le hash dans les réponses API
-  passwordHash: string;
+  @Exclude()
+  passwordHash!: string;
 
   @Column({ type: 'tinyint', unsigned: true, nullable: true })
-  age: number;
+  age?: number;
 
   @Column({
     type: 'enum',
     enum: ['homme', 'femme', 'autre'],
     nullable: true,
   })
-  sexe: string;
+  sexe?: 'homme' | 'femme' | 'autre';
 
   @Column({ type: 'text', nullable: true })
-  allergies: string;
+  allergies?: string;
+
+  @Column({ type: 'text', nullable: true })
+  antecedents?: string;
+
+  @Column({ type: 'text', nullable: true })
+  traitements?: string;
+
+  @Column({ name: 'duree_lesion', type: 'varchar', length: 100, nullable: true })
+  dureeLesion?: string;
+
+  @Column({ type: 'text', nullable: true })
+  symptomes?: string;
+
+  @Column({ name: 'zone_corps', type: 'varchar', length: 100, nullable: true })
+  zoneCorps?: string;
+
+  @Column({ type: 'text', nullable: true })
+  observation?: string;
 
   @Column({ name: 'photo_profil', nullable: true })
-  photoProfil: string;
+  photoProfil?: string;
 
   @Column({
     type: 'enum',
     enum: ['local', 'google', 'facebook'],
     default: 'local',
   })
-  provider: string;
+  provider!: string;
 
   @Column({ name: 'provider_id', nullable: true })
-  providerId: string;
+  providerId?: string;
 
   @Column({
     type: 'enum',
     enum: ['user', 'admin'],
     default: 'user',
   })
-  role: string;
+  role!: string;
 
   @Column({ name: 'double_auth_active', default: false })
-  doubleAuthActive: boolean;
+  doubleAuthActive!: boolean;
 
   @Column({ name: 'double_auth_secret', nullable: true })
   @Exclude()
-  doubleAuthSecret: string;
+  doubleAuthSecret?: string;
 
   @Column({ name: 'email_verifie', default: false })
-  emailVerifie: boolean;
+  emailVerifie!: boolean;
 
   @Column({ name: 'token_verification', nullable: true })
   @Exclude()
-  tokenVerification: string;
+  tokenVerification?: string;
 
   @Column({ default: true })
-  actif: boolean;
+  actif!: boolean;
 
   @CreateDateColumn({ name: 'temp_creation' })
-  tempCreation: Date;
+  tempCreation!: Date;
 
   @UpdateDateColumn({ name: 'temps_modif' })
-  tempsModif: Date;
+  tempsModif!: Date;
 
-  // ── Relations ──
   @OneToMany(() => Analyse, (analyse) => analyse.utilisateur)
-  analyses: Analyse[];
+  analyses!: Analyse[];
 
   @OneToMany(() => Notification, (notif) => notif.utilisateur)
-  notifications: Notification[];
+  notifications!: Notification[];
 
   @OneToMany(() => RefreshToken, (token) => token.utilisateur)
-  refreshTokens: RefreshToken[];
+  refreshTokens!: RefreshToken[];
 }

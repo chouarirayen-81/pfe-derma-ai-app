@@ -339,9 +339,14 @@ export default function LoginScreen() {
         <View style={s.hero}>
           <View style={s.blob1} pointerEvents="none"/>
           <View style={s.blob2} pointerEvents="none"/>
-          <TouchableOpacity onPress={() => router.back()} style={s.back} activeOpacity={0.7} accessibilityLabel="Retour">
-            <IconBack/>
-          </TouchableOpacity>
+          <TouchableOpacity
+  onPress={() => router.replace('/login')}
+  style={s.back}
+  activeOpacity={0.7}
+  accessibilityLabel="Retour"
+>
+  <IconBack />
+</TouchableOpacity>
           <Animated.View style={[s.heroContent, { opacity: fadeAnim }]}>
             <View style={s.logoCircle}><IconSkin/></View>
             <Text style={s.heroTitle}>DermaScan</Text>

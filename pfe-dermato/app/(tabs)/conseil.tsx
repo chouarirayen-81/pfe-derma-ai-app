@@ -218,15 +218,25 @@ export default function ConseilsScreen() {
 };
 
   // ✅ Exact same goTab logic as HomeScreen
- const goTab = (tabId: TabId) => {
-    switch (tabId) {
-      case 'accueil':    router.push('/acceuil');         break;
-      case 'historique': router.push('/historique');     break;
-      case 'scan':       router.push('/scan');    break;
-      case 'conseils':   router.push('/conseil');    break;
-      case 'profil':     router.push('/profile'); break;
-    }
-  };
+const goTab = (tabId: TabId) => {
+  switch (tabId) {
+    case 'accueil':
+      router.replace('/(tabs)/acceuil');
+      break;
+    case 'historique':
+      router.replace('/(tabs)/historique');
+      break;
+    case 'scan':
+      router.replace('/(tabs)/scan');
+      break;
+    case 'conseils':
+      router.replace('/(tabs)/conseil');
+      break;
+    case 'profil':
+      router.replace('/(tabs)/profile');
+      break;
+  }
+};
 
 
   const tabs = [
@@ -242,10 +252,20 @@ export default function ConseilsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.card} />
 
       {/* ── HEADER ── */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <IconBack />
-        </TouchableOpacity>
+     <View style={s.header}>
+  <TouchableOpacity
+    style={s.headerBtn}
+    onPress={() => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/acceuil');
+      }
+    }}
+    activeOpacity={0.7}
+  >
+    <IconBack />
+  </TouchableOpacity>
         <Text style={s.headerTitle}>Conseils prévention</Text>
         <View style={{ width: 40 }} />
       </View>

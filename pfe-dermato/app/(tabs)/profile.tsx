@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logoutUser } from '@/backend/src/api/auth';
 import { useRouter, usePathname } from 'expo-router';
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -211,13 +212,24 @@ export default function ProfileScreen() {
   };
 
 
-  const handleLogout = () => {
-    Alert.alert('Se déconnecter', 'Voulez-vous vraiment vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Déconnecter', style: 'destructive', onPress: () => router.replace('/login') },
-    ]);
-  };
-
+ const handleLogout = () => {
+  Alert.alert('Se déconnecter', 'Voulez-vous vraiment vous déconnecter ?', [
+    { text: 'Annuler', style: 'cancel' },
+    {
+      text: 'Déconnecter',
+      style: 'destructive',
+      onPress: async () => {
+        try {
+          await logoutUser(); // appel backend + suppression token local
+          router.replace('/login');
+        } catch (error) {
+          console.log('Erreur logout:', error);
+          router.replace('/login');
+        }
+      },
+    },
+  ]);
+};
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer le compte',
@@ -235,9 +247,19 @@ export default function ProfileScreen() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <IconBack/>
-        </TouchableOpacity>
+  <TouchableOpacity
+    style={s.headerBtn}
+    onPress={() => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/acceuil');
+      }
+    }}
+    activeOpacity={0.7}
+  >
+    <IconBack />
+  </TouchableOpacity>
         <Text style={s.headerTitle}>Mon profil</Text>
         <TouchableOpacity style={s.headerBtn} activeOpacity={0.7}>
           <IconEdit/>
