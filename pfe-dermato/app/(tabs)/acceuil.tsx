@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from "expo-router";
 import {
   View, Text, ScrollView, TouchableOpacity, Image, TextInput,
-  Modal, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, StatusBar,
+  Modal, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, StatusBar, Alert,
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '@/backend/src/api/client';
-
+import * as ImagePicker from 'expo-image-picker';
 type TabId = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
 
 interface Analysis {
@@ -135,6 +135,95 @@ export default function HomeScreen() {
     { label:'Ce mois',     value:'--', icon:'📅' },
     { label:'Score santé', value:'--', icon:'💚' },
   ]);
+
+  //code de 2 icon nouvelle analyse et importation
+  const handleDirectCamera = async () => {
+  if (!formSubmitted) {
+    setShowFormModal(true);
+    setFormError(false);
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission refusée',
+        "Veuillez autoriser l'accès à la caméra dans les paramètres de votre téléphone.",
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+      exif: false,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const imageUri = result.assets[0].uri;
+
+      router.push({
+        pathname: '/(tabs)/preview',
+        params: { imageUri, source: 'camera' },
+      });
+    }
+  } catch (err) {
+    console.log('Erreur caméra:', err);
+    Alert.alert('Erreur', "Impossible d'accéder à la caméra");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleDirectGallery = async () => {
+  if (!formSubmitted) {
+    setShowFormModal(true);
+    setFormError(false);
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission refusée',
+        "Veuillez autoriser l'accès à la galerie dans les paramètres de votre téléphone.",
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+      exif: false,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const imageUri = result.assets[0].uri;
+
+      router.push({
+        pathname: '/(tabs)/preview',
+        params: { imageUri, source: 'gallery' },
+      });
+    }
+  } catch (err) {
+    console.log('Erreur galerie:', err);
+    Alert.alert('Erreur', "Impossible d'accéder à la galerie");
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ✅ Conseils personnalisés (liés à la pathologie)
   const [conseils,         setConseils]         = useState<Conseil[]>([]);
@@ -365,10 +454,7 @@ export default function HomeScreen() {
         {/* CARTES ACTION */}
         <View style={s.cardsRow}>
           <TouchableOpacity activeOpacity={0.88} style={s.cardGreen}
-            onPress={() => {
-              if (!formSubmitted) { setShowFormModal(true); setFormError(false); return; }
-              goTab('scan');
-            }}>
+            onPress={handleDirectCamera}>
             <View style={s.cardGlow}/>
             <View style={s.cardIconCircle}>
               <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
@@ -382,10 +468,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity activeOpacity={0.88} style={s.cardOrange}
-            onPress={() => {
-              if (!formSubmitted) { setShowFormModal(true); setFormError(false); return; }
-              router.navigate('/(tabs)/preview' as any);
-            }}>
+            onPress={handleDirectGallery}>
             <View style={[s.cardGlow, { backgroundColor:'rgba(255,255,255,0.12)' }]}/>
             <View style={s.cardIconCircle}>
               <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
