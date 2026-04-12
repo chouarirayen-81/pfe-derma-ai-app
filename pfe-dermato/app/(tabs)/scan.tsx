@@ -209,7 +209,7 @@ export default function ScanTipsScreen() {
 
       </View>
     </SafeAreaView>
-  );
+  );  
 }
 
 const s = StyleSheet.create({

@@ -1,30 +1,37 @@
-// backend/src/conseils/conseil.entity.ts
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
-import { Pathologie } from '../Pathologie/Pathologie.entity';
+import { Pathologie } from '../Pathologie/pathologie.entity';
+export type TypeConseil =
+  | 'prevention'
+  | 'traitement'
+  | 'urgence'
+  | 'information';
 
 @Entity('conseils')
 export class Conseil {
-
-  @Column({ nullable: true })
-valeur: string;  // ex: "8 verres/jour"
-
-@Column({ nullable: true })
-emoji: string;   // ex: "💧"
-
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'pathologie_id' })
+  @Column({ nullable: true })
   pathologieId: number;
 
-  @Column({ length: 200 })
+  @ManyToOne(() => Pathologie, (pathologie) => pathologie.conseils, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'pathologieId' })
+  pathologie: Pathologie | null;
+
+  @Column()
   titre: string;
 
-  @Column({ type: 'text' })
+  @Column('text')
   contenu: string;
 
   @Column({
@@ -32,22 +39,20 @@ emoji: string;   // ex: "💧"
     enum: ['prevention', 'traitement', 'urgence', 'information'],
     default: 'information',
   })
-  type: string;
+  type: TypeConseil;
 
-  @Column({ type: 'tinyint', unsigned: true, default: 1 })
+  @Column({ default: 0 })
   ordre: number;
+
+  @Column({ nullable: true })
+  valeur: string;
+
+  @Column({ nullable: true })
+  emoji: string;
 
   @Column({ default: true })
   actif: boolean;
 
-  @CreateDateColumn({ name: 'cree_le' })
+  @CreateDateColumn()
   creeLe: Date;
-
-  @UpdateDateColumn({ name: 'mis_a_jour_le' })
-  misAJourLe: Date;
-
-  // ── Relation : un conseil appartient à une pathologie ──
-  @ManyToOne(() => Pathologie, (pathologie) => pathologie.conseils)
-  @JoinColumn({ name: 'pathologie_id' })
-  pathologie: Pathologie;
 }

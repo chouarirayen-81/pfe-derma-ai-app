@@ -1,21 +1,22 @@
-// backend/src/pathologies/pathologie.entity.ts
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, OneToMany,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
-import { Conseil } from '../conseils/Conseil.entity';
+import { Conseil } from '../conseils/conseil.entity';
 
 @Entity('pathologies')
 export class Pathologie {
-
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 50, unique: true })
-  code: string; // ex: "acne", "eczema"
+  code: string;
 
   @Column({ length: 150 })
-  nom: string; // ex: "Acné vulgaire"
+  nom: string;
 
   @Column({ type: 'text', nullable: true })
   description: string;
@@ -25,7 +26,7 @@ export class Pathologie {
     enum: ['faible', 'moderee', 'elevee'],
     default: 'faible',
   })
-  gravite: string;
+  gravite: 'faible' | 'moderee' | 'elevee';
 
   @Column({ default: true })
   actif: boolean;
@@ -33,7 +34,6 @@ export class Pathologie {
   @CreateDateColumn({ name: 'cree_le' })
   creeLe: Date;
 
-  // ── Relation : une pathologie a plusieurs conseils ──
   @OneToMany(() => Conseil, (conseil) => conseil.pathologie)
   conseils: Conseil[];
 }

@@ -6,9 +6,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Analyse } from './analyses/analyse.entity';
 import { LogAudit } from './audit/log-audit.entity';
 import { RefreshToken } from './auth/Refresh-token.entity';
-import { Conseil } from './conseils/Conseil.entity';
+// ✅ Corriger tous les imports
+import { Pathologie } from './Pathologie/pathologie.entity';
+import { Conseil }    from './conseils/conseil.entity';
 import { Notification } from './notifications/notification.entity';
-import { Pathologie } from './Pathologie/Pathologie.entity';
+
 import { Utilisateur } from './utilisateurs/utilisateur.entity';
 
 // Modules fonctionnels
