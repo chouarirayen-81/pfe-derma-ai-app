@@ -1,80 +1,89 @@
-// backend/src/utilisateurs/utilisateurs.controller.ts
 import {
-  Controller, Get, Put, Delete,
-  Body,Patch, Request, UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags, ApiOperation, ApiResponse,
-  ApiBearerAuth, ApiBody,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { UtilisateursService } from './utlisateurs.service';
-import { JwtAuthGuard }        from '../auth/Jwt-auth.guard';
-import { UpdateMedicalFormDto } from './dto/update-medical-form.dto';
+
+import { UtilisateursService } from './utilisateurs.service';
+import { JwtAuthGuard } from '../auth/Jwt-auth.guard';
+import { UpdateMeDto } from './dto/update-me.dto';
+import { SendVerificationCodeDto } from './dto/send-verification-code.dto';
+import { ChangePasswordWithCodeDto } from './dto/change-password-with-code.dto';
+
 @ApiTags('👤 Profil utilisateur')
 @Controller('utilisateurs')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class UtilisateursController {
-  constructor(private utilisateursService: UtilisateursService) {}
+  constructor(
+    private readonly utilisateursService: UtilisateursService,
+  ) {}
 
-  // GET /utilisateurs/profil
+  private getUserId(req: any): number {
+    return req.user?.userId || req.user?.sub;
+  }
+
   @Get('profil')
   @ApiOperation({ summary: 'Récupérer mon profil complet' })
-  @ApiResponse({ status: 200, description: 'Profil retourné' })
-  getProfil(@Request() req) {
-    return this.utilisateursService.findById(req.user.userId);
+  @ApiResponse({ status: 200, description: 'Profil récupéré avec succès' })
+  getProfil(@Request() req: any) {
+    return this.utilisateursService.findById(this.getUserId(req));
   }
 
-  // PUT /utilisateurs/profil
   @Put('profil')
-  @ApiOperation({ summary: 'Modifier mon profil' })
-  @ApiBody({
-    schema: {
-      example: {
-        nom: 'Dupont', prenom: 'Jean',
-        age: 25, sexe: 'homme',
-        telephone: '0612345678',
-        allergies: 'Nickel, latex',
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Profil modifié' })
-  modifierProfil(@Request() req, @Body() body: any) {
-    return this.utilisateursService.modifierProfil(req.user.userId, body);
-  }
-
-  // PUT /utilisateurs/password
-  @Put('password')
-  @ApiOperation({ summary: 'Changer mon mot de passe' })
-  @ApiBody({
-    schema: {
-      example: {
-        ancienMotDePasse:  'Test1234',
-        nouveauMotDePasse: 'NouveauMdp2024!',
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Mot de passe modifié' })
-  @ApiResponse({ status: 401, description: 'Ancien mot de passe incorrect' })
-  changerMotDePasse(@Request() req, @Body() body: any) {
-    return this.utilisateursService.changerMotDePasse(
-      req.user.userId,
-      body.ancienMotDePasse,
-      body.nouveauMotDePasse,
-    );
+  @ApiOperation({ summary: 'Modifier mon profil (compatibilité ancienne route)' })
+  @ApiResponse({ status: 200, description: 'Profil modifié avec succès' })
+  modifierProfilCompat(@Request() req: any, @Body() dto: UpdateMeDto) {
+    return this.utilisateursService.updateMe(this.getUserId(req), dto);
   }
 
   @Patch('me')
-@UseGuards(JwtAuthGuard)
-async updateMe(@Request() req, @Body() dto: UpdateMedicalFormDto) {
-  return this.utilisateursService.updateMedicalForm(req.user, dto);
+  @ApiOperation({ summary: 'Modifier mon profil et mes informations médicales' })
+  @ApiResponse({ status: 200, description: 'Profil mis à jour avec succès' })
+  updateMe(@Request() req: any, @Body() dto: UpdateMeDto) {
+    return this.utilisateursService.updateMe(this.getUserId(req), dto);
+  }
+
+ @Post('send-verification-code')
+sendVerificationCode(
+  @Request() req: any,
+  @Body() dto: SendVerificationCodeDto,
+) {
+  return this.utilisateursService.sendVerificationCode(
+    req.user?.userId || req.user?.sub,
+    dto.ancienMotDePasse,
+  );
 }
 
-  // DELETE /utilisateurs/compte
+  @Put('password')
+  @ApiOperation({ summary: 'Changer mon mot de passe avec code de vérification' })
+  @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
+  changerMotDePasse(
+    @Request() req: any,
+    @Body() dto: ChangePasswordWithCodeDto,
+  ) {
+    return this.utilisateursService.changerMotDePasseAvecCode(
+      this.getUserId(req),
+      dto,
+    );
+  }
+
   @Delete('compte')
   @ApiOperation({ summary: 'Désactiver mon compte' })
-  @ApiResponse({ status: 200, description: 'Compte désactivé' })
-  supprimerCompte(@Request() req) {
-    return this.utilisateursService.supprimerCompte(req.user.userId);
+  @ApiResponse({ status: 200, description: 'Compte désactivé avec succès' })
+  supprimerCompte(@Request() req: any) {
+    return this.utilisateursService.supprimerCompte(this.getUserId(req));
   }
 }

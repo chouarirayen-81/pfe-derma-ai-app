@@ -1,14 +1,15 @@
-// backend/src/utilisateurs/utilisateurs.module.ts
-import { Module }                    from '@nestjs/common';
-import { TypeOrmModule }             from '@nestjs/typeorm';
-import { Utilisateur }               from './utilisateur.entity';
-import { UtilisateursService }       from './utlisateurs.service';
-import { UtilisateursController }    from './utilisateurs.controller';
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { Utilisateur } from './utilisateur.entity';
+import { UtilisateursService } from './utilisateurs.service';
+import { UtilisateursController } from './utilisateurs.controller';
+import { MailService } from './mail.service';
 
 @Module({
-  imports:     [TypeOrmModule.forFeature([Utilisateur])],
+  imports: [TypeOrmModule.forFeature([Utilisateur])],
   controllers: [UtilisateursController],
-  providers:   [UtilisateursService],
-  exports:     [UtilisateursService, TypeOrmModule],
+  providers: [UtilisateursService, MailService],
+  exports: [UtilisateursService],
 })
 export class UtilisateursModule {}

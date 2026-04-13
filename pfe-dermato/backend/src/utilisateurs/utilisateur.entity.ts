@@ -1,6 +1,3 @@
-// backend/src/utilisateurs/utilisateur.entity.ts
-// TypeORM mappe automatiquement cette classe à la table MySQL `utilisateurs`
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -99,6 +96,25 @@ export class Utilisateur {
   @Column({ name: 'token_verification', nullable: true })
   @Exclude()
   tokenVerification?: string;
+
+ @Column({
+  name: 'password_reset_code_hash',
+  type: 'varchar',
+  length: 255,
+  nullable: true,
+  select: false,
+})
+@Exclude()
+passwordResetCodeHash!: string | null;
+
+@Column({
+  name: 'password_reset_expires_at',
+  type: 'datetime',
+  nullable: true,
+  select: false,
+})
+@Exclude()
+passwordResetExpiresAt!: Date | null;
 
   @Column({ default: true })
   actif!: boolean;

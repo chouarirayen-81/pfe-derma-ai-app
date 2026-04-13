@@ -204,13 +204,21 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
     setLoading(true);
     try {
       // Envoyer code OTP → backend : POST /utilisateurs/send-verification-code
-      const res = await API.post('/utilisateurs/send-verification-code');
+      const res = await API.post('/utilisateurs/send-verification-code', {
+  ancienMotDePasse: ancienMdp,
+});
       setMsgCode(res.data?.message || 'Code envoyé !');
       setStep(2);
-    } catch (err: any) {
-      Alert.alert('Erreur', err?.response?.data?.message || 'Impossible d\'envoyer le code');
-    } finally { setLoading(false); }
-  };
+   } catch (err: any) {
+  const message = err?.response?.data?.message;
+
+  if (err?.response?.status === 401) {
+    Alert.alert('Erreur', message || 'Mot de passe actuel incorrect');
+    return;
+  }
+
+  Alert.alert('Erreur', message || 'Impossible d’envoyer le code');
+}}
 
   // Étape 2 : vérifier le code saisi
   const handleVerifyCode = () => {
