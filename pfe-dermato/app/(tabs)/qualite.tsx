@@ -1,6 +1,5 @@
-// ─── ÉCRAN 4 : qualitéscan.tsx — Vérification qualité ────────────────────────
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   StatusBar, Animated, Easing,
@@ -49,15 +48,13 @@ const IconAI = () => (
   </Svg>
 );
 
-// ── Barre animée ──────────────────────────────────────────────────────────────
 function MetricBar({ label, Icon, target, delay }: {
   label: string; Icon: React.FC; target: number; delay: number;
 }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState(0);
-
   useEffect(() => {
-    const sub = anim.addListener(({ value }) => setDisplay(Math.round(value)));
+    const sub   = anim.addListener(({ value }) => setDisplay(Math.round(value)));
     const timer = setTimeout(() => {
       Animated.timing(anim, {
         toValue: target, duration: 900,
@@ -66,9 +63,7 @@ function MetricBar({ label, Icon, target, delay }: {
     }, delay);
     return () => { clearTimeout(timer); anim.removeListener(sub); };
   }, []);
-
   const widthInterp = anim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
-
   return (
     <View style={b.row}>
       <View style={b.iconWrap}><Icon/></View>
@@ -95,6 +90,12 @@ export default function QualiteScanScreen() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
+  // ✅ Reçoit analyseId depuis preview.tsx
+  const { imageUri, analyseId } = useLocalSearchParams<{
+    imageUri:  string;
+    analyseId: string;
+  }>();
+
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 2800);
     return () => clearTimeout(t);
@@ -103,11 +104,12 @@ export default function QualiteScanScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.card}/>
-
-      {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.closeBtn}
-          onPress={() => router.push('/preview')}
+          onPress={() => router.push({
+            pathname: '/(tabs)/preview',
+            params: { imageUri, analyseId },
+          })}
           activeOpacity={0.7}>
           <IconX/>
         </TouchableOpacity>
@@ -118,8 +120,6 @@ export default function QualiteScanScreen() {
       <View style={s.body}>
         <Text style={s.title}>Vérification de la qualité</Text>
         <Text style={s.subtitle}>Analyse de votre image en cours...</Text>
-
-        {/* BARRES */}
         <View style={s.metricsCard}>
           {metrics.map(({ label, Icon, target, delay }, i) => (
             <View key={i}>
@@ -128,8 +128,6 @@ export default function QualiteScanScreen() {
             </View>
           ))}
         </View>
-
-        {/* SUCCÈS */}
         {ready && (
           <View style={s.successBanner}>
             <IconCheckCircle/>
@@ -138,11 +136,14 @@ export default function QualiteScanScreen() {
         )}
       </View>
 
-      {/* CTA → analysescan.tsx */}
+      {/* ✅ → analysescan avec analyseId */}
       <View style={s.footer}>
         <TouchableOpacity
           style={[s.btnPrimary, !ready && s.btnDisabled]}
-          onPress={() => ready && router.push('/(tabs)/analysescan')}
+          onPress={() => ready && router.push({
+            pathname: '/(tabs)/analysescan',
+            params: { analyseId },
+          })}
           activeOpacity={ready ? 0.88 : 1}>
           <IconAI/>
           <Text style={s.btnTxt}>Lancer l'analyse IA</Text>
@@ -163,18 +164,18 @@ const b = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: C.bg },
-  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  safe:        { flex: 1, backgroundColor: C.bg },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   closeBtn:    { width: 40, height: 40, borderRadius: 12, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: C.text },
-  body:    { flex: 1, paddingHorizontal: 24, paddingTop: 36 },
-  title:   { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.5, marginBottom: 8 },
-  subtitle:{ fontSize: 14, color: C.light, textAlign: 'center', marginBottom: 28 },
+  body:        { flex: 1, paddingHorizontal: 24, paddingTop: 36 },
+  title:       { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.5, marginBottom: 8 },
+  subtitle:    { fontSize: 14, color: C.light, textAlign: 'center', marginBottom: 28 },
   metricsCard: { backgroundColor: C.card, borderRadius: 22, paddingHorizontal: 10, paddingVertical: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 5 },
   divider:     { height: 1, backgroundColor: C.border, marginHorizontal: 6 },
   successBanner:{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f0fdfb', borderWidth: 1.5, borderColor: '#00C6A744', borderRadius: 14, padding: 14, marginTop: 20 },
   successTxt:  { fontSize: 14, fontWeight: '700', color: C.text },
-  footer:  { paddingHorizontal: 24, paddingBottom: 36 },
+  footer:      { paddingHorizontal: 24, paddingBottom: 36 },
   btnPrimary:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 18, padding: 17, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8 },
   btnDisabled: { backgroundColor: '#C5D9D5', shadowOpacity: 0, elevation: 0 },
   btnTxt:      { color: '#fff', fontWeight: '800', fontSize: 15 },

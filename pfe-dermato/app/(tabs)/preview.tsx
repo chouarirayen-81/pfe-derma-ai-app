@@ -1,12 +1,10 @@
-// ─── ÉCRAN 3 : previewscan.tsx — Prévisualisation photo ──────────────────────
 import React from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
-  View, Text, TouchableOpacity , StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   StatusBar, Image, Dimensions,
 } from 'react-native';
 import Svg, { Path, Polyline } from 'react-native-svg';
-import { useLocalSearchParams } from 'expo-router';
 
 const { width: W } = Dimensions.get('window');
 const C = { primary: '#00C6A7' };
@@ -31,19 +29,26 @@ const IconRefresh = () => (
 
 export default function PreviewScanScreen() {
   const router = useRouter();
-  const { imageUri, source } = useLocalSearchParams<{
-    imageUri: string;
-    source: 'camera' | 'gallery';
+
+  // ✅ Reçoit imageUri + analyseId depuis scan.tsx
+  const { imageUri, imageUrl, analyseId, source } = useLocalSearchParams<{
+    imageUri:  string;
+    imageUrl?: string;
+    analyseId: string;
+    source:    string;
   }>();
+
+  // ✅ Affiche l'image locale en priorité (plus rapide)
+  const displayUri = imageUri || imageUrl || '';
+
   return (
-    
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor="#0D1117"/>
 
       {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn}
-          onPress={() => router.push('/(tabs)/camera')}
+          onPress={() => router.push('/(tabs)/scan')}
           activeOpacity={0.7}>
           <IconX/>
         </TouchableOpacity>
@@ -51,31 +56,54 @@ export default function PreviewScanScreen() {
         <View style={{ width: 40 }}/>
       </View>
 
-      {/* IMAGE PREVIEW */}
+      {/* ✅ IMAGE depuis URI locale ou URL backend */}
       <View style={s.previewWrap}>
-        <Image source={{ uri: imageUri }} style={{ flex: 1 }}/>
+        {displayUri ? (
+          <Image
+            source={{ uri: displayUri }}
+            style={[s.previewImg, { height: W - 48 }]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[s.previewImg, { height: W - 48, justifyContent:'center', alignItems:'center' }]}>
+            <Text style={{ color:'#fff', fontSize:14 }}>Aucune image</Text>
+          </View>
+        )}
 
+        {/* Badge statut */}
         <View style={s.qualityBadge}>
           <View style={s.qualityDot}/>
-          <Text style={s.qualityTxt}>Photo capturée</Text>
+          <Text style={s.qualityTxt}>
+            {source === 'camera' ? '📷 Photo capturée' : '🖼️ Image importée'}
+          </Text>
         </View>
+
+        {/* ✅ Badge DB si enregistrée */}
+        {analyseId && analyseId !== '0' && (
+          <View style={s.dbBadge}>
+            <Text style={s.dbTxt}>✅ Enregistrée #{analyseId}</Text>
+          </View>
+        )}
       </View>
 
       <View style={{ flex: 1 }}/>
 
       {/* FOOTER */}
       <View style={s.footer}>
-        {/* ✅ → qualitéscan.tsx */}
+        {/* ✅ → qualite.tsx avec analyseId */}
         <TouchableOpacity style={s.btnPrimary}
-          onPress={() => router.push('/qualite')}
+          onPress={() => router.push({
+            pathname: '/(tabs)/qualite',
+            params: { imageUri: displayUri, analyseId },
+          })}
           activeOpacity={0.88}>
           <IconCheck/>
           <Text style={s.btnPrimaryTxt}>Vérifier la qualité</Text>
         </TouchableOpacity>
 
-        {/* ✅ → camera.tsx */}
+        {/* Reprendre → retour scan */}
         <TouchableOpacity style={s.btnSecondary}
-          onPress={() => router.push('/(tabs)/camera')}
+          onPress={() => router.push('/(tabs)/scan')}
           activeOpacity={0.88}>
           <IconRefresh/>
           <Text style={s.btnSecondaryTxt}>Reprendre la photo</Text>
@@ -86,15 +114,17 @@ export default function PreviewScanScreen() {
 }
 
 const s = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: '#0D1117' },
-  header:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
-  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  safe:        { flex: 1, backgroundColor: '#0D1117' },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
+  iconBtn:     { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  previewWrap: { marginHorizontal: 24, marginTop: 16, borderRadius: 28, overflow: 'hidden' },
-  previewImg:  { width: '100%', borderRadius: 28 },
-  qualityBadge:{ position: 'absolute', top: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7 },
+  previewWrap: { marginHorizontal: 24, marginTop: 16, borderRadius: 28, overflow: 'hidden', position: 'relative' },
+  previewImg:  { width: '100%', borderRadius: 28, backgroundColor: '#1a1a2e' },
+  qualityBadge:{ position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7 },
   qualityDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00C6A7' },
   qualityTxt:  { fontSize: 12, color: '#fff', fontWeight: '700' },
+  dbBadge:     { position: 'absolute', top: 14, right: 14, backgroundColor: 'rgba(0,198,167,0.85)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  dbTxt:       { fontSize: 11, color: '#fff', fontWeight: '800' },
   footer:      { paddingHorizontal: 24, paddingBottom: 36, gap: 12 },
   btnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#00C6A7', borderRadius: 18, padding: 17, shadowColor: '#00C6A7', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 8 },
   btnPrimaryTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },

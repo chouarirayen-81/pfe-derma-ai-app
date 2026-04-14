@@ -1,4 +1,3 @@
-// ─── ÉCRAN 1 : scan.tsx — Conseils + accès caméra/galerie ────────────────────
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
@@ -7,13 +6,13 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
+import API from '@/backend/src/api/client';
 
 const C = {
   primary: '#00C6A7', bg: '#F8FDFB', card: '#FFFFFF',
   text: '#0D2B22', light: '#7A9E95', border: '#EEF5F3',
 };
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconX = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M18 6L6 18M6 6l12 12" stroke={C.text} strokeWidth={2.2} strokeLinecap="round"/>
@@ -53,115 +52,113 @@ const tips = [
   { Icon: IconFocus, title: 'Image nette',         sub: "Maintenez l'appareil stable" },
 ];
 
+// ✅ Fonction upload image → backend → retourne analyseId + imageUrl
+async function uploadImage(imageUri: string): Promise<{ analyseId: number; imageUrl: string }> {
+  const formData = new FormData();
+  formData.append('image', {
+    uri:  imageUri,
+    type: 'image/jpeg',
+    name: 'skin.jpg',
+  } as any);
+
+  const res = await API.post('/analyses', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return {
+    analyseId: res.data.id,
+    imageUrl:  res.data.imagePath || res.data.imageMiniature || imageUri,
+  };
+}
+
 export default function ScanTipsScreen() {
   const router = useRouter();
   const [loadingCamera,  setLoadingCamera]  = useState(false);
   const [loadingGallery, setLoadingGallery] = useState(false);
 
-  // ✅ Ouvrir la CAMÉRA
+  // ✅ Upload + navigation vers preview
+  const handleImageSelected = async (imageUri: string, source: string) => {
+    try {
+      const { analyseId, imageUrl } = await uploadImage(imageUri);
+
+      router.push({
+        pathname: '/(tabs)/preview',
+        params: {
+          imageUri,     // URI locale pour affichage immédiat
+          imageUrl,     // URL backend (sauvegardée en DB)
+          analyseId: String(analyseId),
+          source,
+        },
+      });
+    } catch (err: any) {
+      console.log('Erreur upload:', err?.response?.data || err?.message);
+      // ✅ Même si upload échoue → navigue quand même avec l'image locale
+      router.push({
+        pathname: '/(tabs)/preview',
+        params: { imageUri, source, analyseId: '0' },
+      });
+    }
+  };
+
   const handleCamera = async () => {
     try {
       setLoadingCamera(true);
-
-      // Demander la permission caméra
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission refusée',
-          'Veuillez autoriser l\'accès à la caméra dans les paramètres de votre téléphone.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Permission refusée', "Autorisez l'accès à la caméra dans les paramètres.");
         return;
       }
-
-      // Ouvrir la caméra
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],       // carré pour centrer la lésion
-        quality: 0.85,
-        exif: false,          // ✅ supprime les métadonnées EXIF (confidentialité)
+        allowsEditing: true, aspect: [1, 1], quality: 0.85, exif: false,
       });
-
       if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        // ✅ Navigue vers preview avec l'URI de la photo
-        router.push({
-          pathname: '/(tabs)/preview',
-          params: { imageUri, source: 'camera' },
-        });
+        await handleImageSelected(result.assets[0].uri, 'camera');
       }
-
     } catch (err) {
-      console.log('Erreur caméra:', err);
-      Alert.alert('Erreur', 'Impossible d\'accéder à la caméra');
+      Alert.alert('Erreur', "Impossible d'accéder à la caméra");
     } finally {
       setLoadingCamera(false);
     }
   };
 
-  // ✅ Ouvrir la GALERIE
   const handleGallery = async () => {
     try {
       setLoadingGallery(true);
-
-      // Demander la permission galerie
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission refusée',
-          'Veuillez autoriser l\'accès à la galerie dans les paramètres de votre téléphone.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Permission refusée', "Autorisez l'accès à la galerie dans les paramètres.");
         return;
       }
-
-      // Ouvrir la galerie
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-        exif: false,          // ✅ supprime les métadonnées EXIF
+        allowsEditing: true, aspect: [1, 1], quality: 0.85, exif: false,
       });
-
       if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        // ✅ Navigue vers preview avec l'URI de la photo
-        router.push({
-          pathname: '/(tabs)/preview',
-          params: { imageUri, source: 'gallery' },
-        });
+        await handleImageSelected(result.assets[0].uri, 'gallery');
       }
-
     } catch (err) {
-      console.log('Erreur galerie:', err);
-      Alert.alert('Erreur', 'Impossible d\'accéder à la galerie');
+      Alert.alert('Erreur', "Impossible d'accéder à la galerie");
     } finally {
       setLoadingGallery(false);
     }
   };
 
+  const isLoading = loadingCamera || loadingGallery;
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.card}/>
-
-      {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.closeBtn}
-          onPress={() => router.push('/(tabs)/acceuil')}
-          activeOpacity={0.7}>
+        <TouchableOpacity style={s.closeBtn} onPress={() => router.push('/(tabs)/acceuil')} activeOpacity={0.7}>
           <IconX/>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Nouvelle analyse</Text>
         <View style={{ width: 40 }}/>
       </View>
-
-      {/* BODY */}
       <View style={s.body}>
         <Text style={s.title}>Conseils pour une bonne photo</Text>
         <Text style={s.subtitle}>Suivez ces conseils pour obtenir une analyse précise</Text>
-
         <View style={s.tipsWrap}>
           {tips.map(({ Icon, title, sub }, i) => (
             <View key={i} style={s.tipCard}>
@@ -174,28 +171,16 @@ export default function ScanTipsScreen() {
           ))}
         </View>
       </View>
-
-      {/* FOOTER */}
       <View style={s.footer}>
-
-        {/* ✅ CAMÉRA */}
-        <TouchableOpacity
-          style={[s.btnPrimary, loadingCamera && { opacity: 0.7 }]}
-          onPress={handleCamera}
-          activeOpacity={0.88}
-          disabled={loadingCamera || loadingGallery}>
+        <TouchableOpacity style={[s.btnPrimary, isLoading && { opacity: 0.7 }]}
+          onPress={handleCamera} activeOpacity={0.88} disabled={isLoading}>
           <IconCamera/>
           <Text style={s.btnPrimaryTxt}>
-            {loadingCamera ? 'Ouverture...' : 'Prendre une photo'}
+            {loadingCamera ? 'Envoi en cours...' : 'Prendre une photo'}
           </Text>
         </TouchableOpacity>
-
-        {/* ✅ GALERIE */}
-        <TouchableOpacity
-          style={[s.btnSecondary, loadingGallery && { opacity: 0.7 }]}
-          onPress={handleGallery}
-          activeOpacity={0.88}
-          disabled={loadingCamera || loadingGallery}>
+        <TouchableOpacity style={[s.btnSecondary, isLoading && { opacity: 0.7 }]}
+          onPress={handleGallery} activeOpacity={0.88} disabled={isLoading}>
           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
             <Rect x={3}  y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
             <Rect x={14} y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
@@ -203,13 +188,12 @@ export default function ScanTipsScreen() {
             <Rect x={3}  y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
           </Svg>
           <Text style={s.btnSecondaryTxt}>
-            {loadingGallery ? 'Ouverture...' : 'Choisir depuis la galerie'}
+            {loadingGallery ? 'Envoi en cours...' : 'Choisir depuis la galerie'}
           </Text>
         </TouchableOpacity>
-
       </View>
     </SafeAreaView>
-  );  
+  );
 }
 
 const s = StyleSheet.create({
