@@ -384,6 +384,15 @@ const handleDirectGallery = async () => {
   }, []);
 
   // ─── Formulaire médical ──────────────────────────────────────────────────────
+  const normalizeSexe = (value: string) => {
+  const v = value.trim().toLowerCase();
+  if (v === 'homme') return 'homme';
+  if (v === 'femme') return 'femme';
+  if (v === 'autre') return 'autre';
+  return null;
+};
+sexe: normalizeSexe(formData.sexe)
+
   const handleFormSubmit = async () => {
     if (!isMedicalFormComplete(formData)) {
       setFormError(true); setFormSubmitted(false); return;
@@ -391,16 +400,16 @@ const handleDirectGallery = async () => {
     try {
       setFormError(false); setLoading(true);
       await API.patch('/utilisateurs/me', {
-        age:         Number(formData.age),
-        sexe:        formData.sexe?.trim()        || '',
-        antecedents: formData.antecedents?.trim() || '',
-        allergies:   formData.allergies?.trim()   || '',
-        traitements: formData.traitements?.trim() || '',
-        dureeLesion: formData.dureeLesion?.trim() || '',
-        symptomes:   formData.symptomes?.trim()   || '',
-        zoneCorps:   formData.zoneCorps?.trim()   || '',
-        observation: formData.observation?.trim() || '',
-      });
+  age: Number(formData.age),
+  sexe: formData.sexe?.trim().toLowerCase() || null,
+  antecedents: formData.antecedents?.trim() || null,
+  allergies: formData.allergies?.trim() || null,
+  traitements: formData.traitements?.trim() || null,
+  dureeLesion: formData.dureeLesion?.trim() || null,
+  symptomes: formData.symptomes?.trim() || null,
+  zoneCorps: formData.zoneCorps?.trim() || null,
+  observation: formData.observation?.trim() || null,
+});
       setFormSubmitted(true);
       setShowFormModal(false);
     } catch (error: any) {
