@@ -3,6 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   StatusBar, Image, Dimensions,
+  Alert,
 } from 'react-native';
 import Svg, { Path, Polyline } from 'react-native-svg';
 
@@ -31,16 +32,19 @@ export default function PreviewScanScreen() {
   const router = useRouter();
 
   // ✅ Reçoit imageUri + analyseId depuis scan.tsx
-  const { imageUri, imageUrl, analyseId, source } = useLocalSearchParams<{
-    imageUri:  string;
-    imageUrl?: string;
-    analyseId: string;
-    source:    string;
-  }>();
+const params = useLocalSearchParams<{
+  imageUri?: string | string[];
+  imageUrl?: string | string[];
+  analyseId?: string | string[];
+  source?: string | string[];
+}>();
 
-  // ✅ Affiche l'image locale en priorité (plus rapide)
-  const displayUri = imageUri || imageUrl || '';
+const imageUri = Array.isArray(params.imageUri) ? params.imageUri[0] : params.imageUri;
+const imageUrl = Array.isArray(params.imageUrl) ? params.imageUrl[0] : params.imageUrl;
+const analyseId = Array.isArray(params.analyseId) ? params.analyseId[0] : params.analyseId;
+const source = Array.isArray(params.source) ? params.source[0] : params.source;
 
+const displayUri = imageUri || imageUrl || '';
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor="#0D1117"/>
@@ -79,7 +83,7 @@ export default function PreviewScanScreen() {
         </View>
 
         {/* ✅ Badge DB si enregistrée */}
-        {analyseId && analyseId !== '0' && (
+        {analyseId && analyseId !== '0' && analyseId !== 'undefined' && (
           <View style={s.dbBadge}>
             <Text style={s.dbTxt}>✅ Enregistrée #{analyseId}</Text>
           </View>
@@ -92,10 +96,22 @@ export default function PreviewScanScreen() {
       <View style={s.footer}>
         {/* ✅ → qualite.tsx avec analyseId */}
         <TouchableOpacity style={s.btnPrimary}
-          onPress={() => router.push({
-            pathname: '/(tabs)/qualite',
-            params: { imageUri: displayUri, analyseId },
-          })}
+          onPress={() => {
+  console.log('preview analyseId =', analyseId);
+
+if (!analyseId || analyseId === 'undefined' || isNaN(Number(analyseId))) {
+  Alert.alert('Erreur', `analyseId invalide dans preview: ${String(analyseId)}`);
+  return;
+}
+
+router.push({
+  pathname: '/(tabs)/qualite',
+  params: {
+    imageUri: displayUri,
+    analyseId: String(analyseId),
+  },
+});
+}}
           activeOpacity={0.88}>
           <IconCheck/>
           <Text style={s.btnPrimaryTxt}>Vérifier la qualité</Text>

@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
-import API from '@/backend/src/api/client';
+import { analyzeImage } from '@/backend/src/api/client';
 
 const C = {
   primary: '#00C6A7', bg: '#F8FDFB', card: '#FFFFFF',
@@ -47,71 +47,74 @@ const IconCamera = () => (
 );
 
 const tips = [
-  { Icon: IconSun,   title: 'Bonne luminosité',   sub: 'Utilisez la lumière naturelle si possible' },
-  { Icon: IconFrame, title: 'Zone bien cadrée',    sub: 'Centrez la lésion dans le cadre' },
-  { Icon: IconFocus, title: 'Image nette',         sub: "Maintenez l'appareil stable" },
+  { Icon: IconSun,   title: 'Bonne luminosité', sub: 'Utilisez la lumière naturelle si possible' },
+  { Icon: IconFrame, title: 'Zone bien cadrée', sub: 'Centrez la lésion dans le cadre' },
+  { Icon: IconFocus, title: 'Image nette', sub: "Maintenez l'appareil stable" },
 ];
-
-// ✅ Fonction upload image → backend → retourne analyseId + imageUrl
-async function uploadImage(imageUri: string): Promise<{ analyseId: number; imageUrl: string }> {
-  const formData = new FormData();
-  formData.append('image', {
-    uri:  imageUri,
-    type: 'image/jpeg',
-    name: 'skin.jpg',
-  } as any);
-
-  const res = await API.post('/analyses', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-
-  return {
-    analyseId: res.data.id,
-    imageUrl:  res.data.imagePath || res.data.imageMiniature || imageUri,
-  };
-}
 
 export default function ScanTipsScreen() {
   const router = useRouter();
-  const [loadingCamera,  setLoadingCamera]  = useState(false);
+  const [loadingCamera, setLoadingCamera] = useState(false);
   const [loadingGallery, setLoadingGallery] = useState(false);
 
-  // ✅ Upload + navigation vers preview
-  const handleImageSelected = async (imageUri: string, source: string) => {
+  const handleImageSelected = async (imageUri: string, source: 'camera' | 'gallery') => {
     try {
-      const { analyseId, imageUrl } = await uploadImage(imageUri);
+      const res = await analyzeImage(imageUri);
+      console.log('REPONSE POST /analyses =', res);
+
+      const analyseId =
+        res?.analyseId ??
+        res?.id ??
+        res?.data?.analyseId ??
+        res?.data?.id;
+
+      const imageUrl =
+        res?.imageUrl ??
+        res?.imageMiniature ??
+        res?.data?.imageUrl ??
+        res?.data?.imageMiniature ??
+        '';
+
+      console.log('analyseId extrait scan =', analyseId);
+
+      if (analyseId === undefined || analyseId === null || isNaN(Number(analyseId))) {
+        Alert.alert('Erreur', `analyseId invalide reçu du backend: ${String(analyseId)}`);
+        return;
+      }
 
       router.push({
         pathname: '/(tabs)/preview',
         params: {
-          imageUri,     // URI locale pour affichage immédiat
-          imageUrl,     // URL backend (sauvegardée en DB)
+          imageUri,
+          imageUrl,
           analyseId: String(analyseId),
           source,
         },
       });
     } catch (err: any) {
       console.log('Erreur upload:', err?.response?.data || err?.message);
-      // ✅ Même si upload échoue → navigue quand même avec l'image locale
-      router.push({
-        pathname: '/(tabs)/preview',
-        params: { imageUri, source, analyseId: '0' },
-      });
+      Alert.alert('Erreur', err?.response?.data?.message || "Impossible d'envoyer l'image au serveur.");
     }
   };
 
   const handleCamera = async () => {
     try {
       setLoadingCamera(true);
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission refusée', "Autorisez l'accès à la caméra dans les paramètres.");
         return;
       }
+
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true, aspect: [1, 1], quality: 0.85, exif: false,
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        exif: false,
       });
+
       if (!result.canceled && result.assets[0]) {
         await handleImageSelected(result.assets[0].uri, 'camera');
       }
@@ -125,15 +128,21 @@ export default function ScanTipsScreen() {
   const handleGallery = async () => {
     try {
       setLoadingGallery(true);
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission refusée', "Autorisez l'accès à la galerie dans les paramètres.");
         return;
       }
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true, aspect: [1, 1], quality: 0.85, exif: false,
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        exif: false,
       });
+
       if (!result.canceled && result.assets[0]) {
         await handleImageSelected(result.assets[0].uri, 'gallery');
       }
@@ -156,9 +165,11 @@ export default function ScanTipsScreen() {
         <Text style={s.headerTitle}>Nouvelle analyse</Text>
         <View style={{ width: 40 }}/>
       </View>
+
       <View style={s.body}>
         <Text style={s.title}>Conseils pour une bonne photo</Text>
         <Text style={s.subtitle}>Suivez ces conseils pour obtenir une analyse précise</Text>
+
         <View style={s.tipsWrap}>
           {tips.map(({ Icon, title, sub }, i) => (
             <View key={i} style={s.tipCard}>
@@ -171,21 +182,31 @@ export default function ScanTipsScreen() {
           ))}
         </View>
       </View>
+
       <View style={s.footer}>
-        <TouchableOpacity style={[s.btnPrimary, isLoading && { opacity: 0.7 }]}
-          onPress={handleCamera} activeOpacity={0.88} disabled={isLoading}>
+        <TouchableOpacity
+          style={[s.btnPrimary, isLoading && { opacity: 0.7 }]}
+          onPress={handleCamera}
+          activeOpacity={0.88}
+          disabled={isLoading}
+        >
           <IconCamera/>
           <Text style={s.btnPrimaryTxt}>
             {loadingCamera ? 'Envoi en cours...' : 'Prendre une photo'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.btnSecondary, isLoading && { opacity: 0.7 }]}
-          onPress={handleGallery} activeOpacity={0.88} disabled={isLoading}>
+
+        <TouchableOpacity
+          style={[s.btnSecondary, isLoading && { opacity: 0.7 }]}
+          onPress={handleGallery}
+          activeOpacity={0.88}
+          disabled={isLoading}
+        >
           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Rect x={3}  y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
-            <Rect x={14} y={3}  width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
+            <Rect x={3} y={3} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
+            <Rect x={14} y={3} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
             <Rect x={14} y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
-            <Rect x={3}  y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
+            <Rect x={3} y={14} width={7} height={7} rx={1} stroke={C.primary} strokeWidth={2}/>
           </Svg>
           <Text style={s.btnSecondaryTxt}>
             {loadingGallery ? 'Envoi en cours...' : 'Choisir depuis la galerie'}
@@ -197,21 +218,21 @@ export default function ScanTipsScreen() {
 }
 
 const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: C.bg },
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  closeBtn:    { width: 40, height: 40, borderRadius: 12, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  safe: { flex: 1, backgroundColor: C.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  closeBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: C.text },
-  body:        { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
-  title:       { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.6, marginBottom: 10 },
-  subtitle:    { fontSize: 14, color: C.light, textAlign: 'center', lineHeight: 20, marginBottom: 36 },
-  tipsWrap:    { gap: 14 },
-  tipCard:     { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.card, borderRadius: 18, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 },
+  body: { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
+  title: { fontSize: 26, fontWeight: '900', color: C.text, textAlign: 'center', letterSpacing: -0.6, marginBottom: 10 },
+  subtitle: { fontSize: 14, color: C.light, textAlign: 'center', lineHeight: 20, marginBottom: 36 },
+  tipsWrap: { gap: 14 },
+  tipCard: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.card, borderRadius: 18, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4 },
   tipIconWrap: { width: 52, height: 52, borderRadius: 16, backgroundColor: C.primary + '18', alignItems: 'center', justifyContent: 'center' },
-  tipTitle:    { fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 3 },
-  tipSub:      { fontSize: 13, color: C.light, lineHeight: 18 },
-  footer:      { paddingHorizontal: 24, paddingBottom: 32, gap: 12 },
-  btnPrimary:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 18, padding: 17, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8 },
+  tipTitle: { fontSize: 15, fontWeight: '800', color: C.text, marginBottom: 3 },
+  tipSub: { fontSize: 13, color: C.light, lineHeight: 18 },
+  footer: { paddingHorizontal: 24, paddingBottom: 32, gap: 12 },
+  btnPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 18, padding: 17, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8 },
   btnPrimaryTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  btnSecondary:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.card, borderRadius: 18, padding: 16, borderWidth: 2, borderColor: C.primary },
-  btnSecondaryTxt:{ color: C.primary, fontWeight: '800', fontSize: 15 },
+  btnSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.card, borderRadius: 18, padding: 16, borderWidth: 2, borderColor: C.primary },
+  btnSecondaryTxt: { color: C.primary, fontWeight: '800', fontSize: 15 },
 });

@@ -8,8 +8,9 @@ import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '@/backend/src/api/client';
 import * as ImagePicker from 'expo-image-picker';
+import { analyzeImage } from '@/backend/src/api/client';
 type TabId = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
-
+const BACKEND_BASE_URL = 'http://192.168.1.107:3000';
 interface Analysis {
   id: number; date: string; title: string; confidence: number;
   color: string; bgColor: string; img: string; tag: string;
@@ -158,7 +159,7 @@ export default function HomeScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
@@ -168,13 +169,39 @@ export default function HomeScreen() {
     if (!result.canceled && result.assets[0]) {
       const imageUri = result.assets[0].uri;
 
+      const res = await analyzeImage(imageUri);
+      console.log('REPONSE POST /analyses =', res);
+
+      const analyseId =
+        res?.analyseId ??
+        res?.id ??
+        res?.data?.analyseId ??
+        res?.data?.id;
+
+      const imageUrl =
+        res?.imageUrl ??
+        res?.imageMiniature ??
+        res?.data?.imageUrl ??
+        res?.data?.imageMiniature ??
+        '';
+
+      if (analyseId === undefined || analyseId === null || isNaN(Number(analyseId))) {
+        Alert.alert('Erreur', `analyseId invalide reçu du backend: ${String(analyseId)}`);
+        return;
+      }
+
       router.push({
         pathname: '/(tabs)/preview',
-        params: { imageUri, source: 'camera' },
+        params: {
+          imageUri,
+          imageUrl,
+          analyseId: String(analyseId),
+          source: 'camera',
+        },
       });
     }
-  } catch (err) {
-    console.log('Erreur caméra:', err);
+  } catch (err: any) {
+    console.log('Erreur caméra:', err?.response?.data || err?.message || err);
     Alert.alert('Erreur', "Impossible d'accéder à la caméra");
   } finally {
     setLoading(false);
@@ -202,7 +229,7 @@ const handleDirectGallery = async () => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
@@ -212,13 +239,39 @@ const handleDirectGallery = async () => {
     if (!result.canceled && result.assets[0]) {
       const imageUri = result.assets[0].uri;
 
+      const res = await analyzeImage(imageUri);
+      console.log('REPONSE POST /analyses =', res);
+
+      const analyseId =
+        res?.analyseId ??
+        res?.id ??
+        res?.data?.analyseId ??
+        res?.data?.id;
+
+      const imageUrl =
+        res?.imageUrl ??
+        res?.imageMiniature ??
+        res?.data?.imageUrl ??
+        res?.data?.imageMiniature ??
+        '';
+
+      if (analyseId === undefined || analyseId === null || isNaN(Number(analyseId))) {
+        Alert.alert('Erreur', `analyseId invalide reçu du backend: ${String(analyseId)}`);
+        return;
+      }
+
       router.push({
         pathname: '/(tabs)/preview',
-        params: { imageUri, source: 'gallery' },
+        params: {
+          imageUri,
+          imageUrl,
+          analyseId: String(analyseId),
+          source: 'gallery',
+        },
       });
     }
-  } catch (err) {
-    console.log('Erreur galerie:', err);
+  } catch (err: any) {
+    console.log('Erreur galerie:', err?.response?.data || err?.message || err);
     Alert.alert('Erreur', "Impossible d'accéder à la galerie");
   } finally {
     setLoading(false);
@@ -282,37 +335,47 @@ const handleDirectGallery = async () => {
 
   // ─── Chargement conseils personnalisés ──────────────────────────────────────
   const loadConseils = async (pathologieId: number | null) => {
-    try {
-      setConseilsLoading(true);
-      const pid = pathologieId ?? 0;
-      const res = await API.get(`/conseils/pathologie/${pid}`);
-      setConseils(res.data?.data || []);
-    } catch (err) {
-      console.log('Erreur conseils:', err);
+  try {
+    setConseilsLoading(true);
+
+    if (!pathologieId) {
       setConseils([]);
-    } finally {
-      setConseilsLoading(false);
+      return;
     }
-  };
+
+    const res = await API.get(`/conseils/pathologie/${pathologieId}`);
+    const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    setConseils(list);
+  } catch (err: any) {
+    console.log('Erreur conseils:', err?.response?.data || err?.message);
+    setConseils([]);
+  } finally {
+    setConseilsLoading(false);
+  }
+};
 
   // ✅ Chargement tips généraux depuis la DB
   // Route backend : GET /conseils/tips?limit=3
   // Retourne : [{ id, titre, valeur, emoji }]
   const loadTips = async () => {
-    try {
-      setTipsLoading(true);
-      const res = await API.get('/conseils/tips?limit=3');
-      if (res.data && res.data.length > 0) {
-        setTips(res.data);
-      }
-      // Si vide → garde les DEFAULT_TIPS déjà en state
-    } catch (err) {
-      console.log('Erreur tips:', err);
-      // Garde les DEFAULT_TIPS en cas d'erreur
-    } finally {
-      setTipsLoading(false);
+  try {
+    setTipsLoading(true);
+
+    const res = await API.get('/conseils/tips?limit=3');
+    const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+
+    if (list.length > 0) {
+      setTips(list);
+    } else {
+      setTips(DEFAULT_TIPS);
     }
-  };
+  } catch (err: any) {
+    console.log('Erreur tips:', err?.response?.data || err?.message);
+    setTips(DEFAULT_TIPS);
+  } finally {
+    setTipsLoading(false);
+  }
+};
 
   // ─── Chargement global ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -333,21 +396,33 @@ const handleDirectGallery = async () => {
         ]);
 
         const analyses = data.recentAnalyses || [];
-        setRecentAnalyses(
-          analyses.map((a: any) => ({
-            id:         a.id,
-            date:       new Date(a.date).toLocaleDateString('fr-FR', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        }),
-            title:      a.title || 'Analyse dermatologique',
-            confidence: Math.round(a.confidence || 0),
-            color:      getColor(a.confidence || 0),
-            bgColor:    getBgColor(a.confidence || 0),
-            img:        a.imageUrl || 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop',
-            tag:        getTag(a.tag),
-          }))
-        );
 
+setRecentAnalyses(
+  analyses.map((a: any) => {
+    const confidence = Math.round(a.confidence ?? a.scoreConfiance ?? 0);
+
+    const imageUrl =
+      a.imageUrl ||
+      (a.imageMiniature
+        ? `${BACKEND_BASE_URL}/${String(a.imageMiniature).replace(/^\.?\//, '')}`
+        : 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop');
+
+    return {
+      id: a.id,
+      date: new Date(a.date || a.creeLe).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      title: a.title || a.classePredite || 'Analyse dermatologique',
+      confidence,
+      color: getColor(confidence),
+      bgColor: getBgColor(confidence),
+      img: imageUrl,
+      tag: getTag(a.tag || a.niveauUrgence),
+    };
+  })
+);
         // 3. Conseils personnalisés (selon pathologie dernière analyse)
         const derniere = analyses[0];
         const pid: number | null = derniere?.pathologieId ?? null;
@@ -517,7 +592,12 @@ sexe: normalizeSexe(formData.sexe)
           </View>
         ) : recentAnalyses.map((item) => (
           <TouchableOpacity key={item.id} style={s.analysisCard} activeOpacity={0.82}
-            onPress={() => router.navigate(`/(tabs)/analysescan?id=${item.id}` as any)}>
+                          onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/analysescan',
+                  params: { analyseId: String(item.id) },
+                })
+              }>
             <Image source={{ uri: item.img }} style={s.analysisImg}/>
             <View style={{ flex:1 }}>
               <View style={s.analysisTopRow}>

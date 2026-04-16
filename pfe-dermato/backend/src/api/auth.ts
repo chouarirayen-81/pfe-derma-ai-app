@@ -7,13 +7,12 @@ export const loginUser = async (email: string, password: string) => {
 
   console.log('✅ LOGIN RESPONSE:', res.data);
 
-  await AsyncStorage.setItem('token', res.data.accessToken);
+  await AsyncStorage.setItem('accessToken', res.data.accessToken);
   await AsyncStorage.setItem('refreshToken', res.data.refreshToken);
   await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
 
   return res.data;
 };
-
 // ── REGISTER ───────────────────────────────────────────
 export const registerUser = async (payload: {
   nom: string;

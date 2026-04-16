@@ -284,24 +284,51 @@ export default function LoginScreen() {
   const handleEmailChange = (v: string) => { setEmail(v); if (emailError) setEmailError(""); };
   const handlePwdChange   = (v: string) => { setPassword(v); if (pwdError) setPwdError(""); };
 
- const onLogin = useCallback(async () => {
-  // Validation
+const onLogin = useCallback(async () => {
   let hasError = false;
-  if (!email.trim())            { setEmailError("L'email est requis"); hasError = true; }
-  else if (!isEmailValid)       { setEmailError("Format d'email invalide"); hasError = true; }
-  if (!password)                { setPwdError("Le mot de passe est requis"); hasError = true; }
-  else if (password.length < 6) { setPwdError("Minimum 6 caractères"); hasError = true; }
-  if (hasError) { shake(); return; }
+
+  if (!email.trim()) {
+    setEmailError("L'email est requis");
+    hasError = true;
+  } else if (!isEmailValid) {
+    setEmailError("Format d'email invalide");
+    hasError = true;
+  }
+
+  if (!password) {
+    setPwdError("Le mot de passe est requis");
+    hasError = true;
+  } else if (password.length < 6) {
+    setPwdError("Minimum 6 caractères");
+    hasError = true;
+  }
+
+  if (hasError) {
+    shake();
+    return;
+  }
 
   setLoading(true);
-  try {
-    await loginUser(email.trim().toLowerCase(), password);
-    router.replace("/acceuil");
 
+  try {
+    const response = await loginUser(email.trim().toLowerCase(), password);
+
+    const accessToken =
+      response?.accessToken ||
+      response?.token ||
+      response?.data?.accessToken ||
+      response?.data?.token;
+
+    if (!accessToken) {
+      throw new Error("Token JWT introuvable dans la réponse de login");
+    }
+
+    await AsyncStorage.setItem('accessToken', accessToken);
+
+    router.replace('/acceuil');
   } catch (err: any) {
     shake();
 
-    // ✅ Gestion des erreurs selon le code HTTP
     const status = err.response?.status;
     const message = err.response?.data?.message;
 
@@ -312,12 +339,10 @@ export default function LoginScreen() {
     } else if (status === 429) {
       setPwdError("Trop de tentatives, réessayez dans 5 minutes");
     } else if (!err.response) {
-      // Pas de connexion réseau
       setPwdError("Impossible de contacter le serveur");
     } else {
       setPwdError(message || "Une erreur est survenue");
     }
-
   } finally {
     setLoading(false);
   }

@@ -4,9 +4,9 @@ import { HttpModule }      from '@nestjs/axios';
 import { MulterModule }    from '@nestjs/platform-express';
 import { memoryStorage }   from 'multer';
 import { Analyse }             from './analyse.entity';
-import { AnalysesService }     from './Analyses.service';
+import { AnalysesService } from './analyses.service';
 import { AnalysesController }  from './analyses.controller';
- 
+ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Analyse]),
@@ -26,6 +26,7 @@ import { AnalysesController }  from './analyses.controller';
         }
       },
     }),
+    ConfigModule,
   ],
   controllers: [AnalysesController],
   providers:   [AnalysesService],

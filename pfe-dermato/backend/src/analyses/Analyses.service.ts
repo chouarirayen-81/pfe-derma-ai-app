@@ -1,10 +1,9 @@
-// backend/src/analyses/analyses.service.ts
+// backend/src/analyses/Analyses.service.ts
 import {
-  Injectable, NotFoundException,
-  BadRequestException, HttpException,
+  Injectable, NotFoundException, BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository }       from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { HttpService }      from '@nestjs/axios';
 import { ConfigService }    from '@nestjs/config';
 import { firstValueFrom }   from 'rxjs';
@@ -12,8 +11,6 @@ import * as fs              from 'fs';
 import * as path            from 'path';
 import * as crypto          from 'crypto';
 import { Analyse }          from './analyse.entity';
-
-import { Between } from 'typeorm';
 
 @Injectable()
 export class AnalysesService {
@@ -23,130 +20,192 @@ export class AnalysesService {
     private httpService: HttpService,
     private config: ConfigService,
   ) {}
+  
 
-  // ── 1. Créer une analyse (upload image) ──────────────────
-  async creerAnalyse(
-    utilisateurId: number,
-    file: Express.Multer.File,
-  ): Promise<Analyse> {
 
-    if (!file) throw new BadRequestException('Aucune image reçue');
-
-    // Hash SHA-256 de l'image pour intégrité
-    const imageHash = crypto
-      .createHash('sha256')
-      .update(file.buffer)
-      .digest('hex');
-
-    // Sauvegarder l'image sur le disque
-    const uploadDir  = this.config.get('UPLOAD_PATH', './uploads');
-    const fileName   = `${Date.now()}-${utilisateurId}.jpg`;
-    const filePath   = path.join(uploadDir, fileName);
-
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    fs.writeFileSync(filePath, file.buffer);
-
-    // Créer l'entrée en base avec statut "en_attente"
-    const analyse = this.analyseRepo.create({
-      utilisateurId,
-      imagePath:           filePath,
-      imageMiniature:      filePath,
-      imageHash,
-      metadataSupprimees:  true,
-      statut:              'en_attente',
-    });
-    const saved = await this.analyseRepo.save(analyse);
-
-    // Lancer l'analyse IA en arrière-plan (sans bloquer)
-    this.lancerAnalyseIA(saved.id, filePath).catch(console.error);
-
-    return saved;
+  // ── 1. Upload image → DB (statut en_attente) ─────────────────────────────
+ async creerAnalyse(
+  utilisateurId: number,
+  file: Express.Multer.File,
+  source?: string,
+): Promise<{
+  analyseId: number;
+  imagePath: string;
+  imageUrl: string;
+  statut: string;
+}> {
+  if (!file) {
+    throw new BadRequestException('Aucune image reçue');
   }
 
-  // ── 2. Appel au microservice IA (FastAPI binôme) ─────────
-  private async lancerAnalyseIA(analyseId: number, imagePath: string) {
-    const iaUrl = this.config.get('IA_SERVICE_URL', 'http://localhost:8000');
+  if (!file.buffer || file.buffer.length === 0) {
+    throw new BadRequestException("Le fichier image n'a pas de contenu");
+  }
 
-    // Mettre le statut en "en_cours"
+  const uploadDir = this.config.get<string>('UPLOAD_PATH') || './uploads';
+  const ext =
+    file.mimetype === 'image/png' ? 'png' :
+    file.mimetype === 'image/webp' ? 'webp' :
+    'jpg';
+
+  const fileName = `${Date.now()}-${utilisateurId}.${ext}`;
+  const filePath = path.join(uploadDir, fileName);
+
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  fs.writeFileSync(filePath, file.buffer);
+
+  const imageHash = crypto
+    .createHash('sha256')
+    .update(file.buffer)
+    .digest('hex');
+
+const analyse = new Analyse();
+
+analyse.utilisateurId = utilisateurId;
+analyse.imagePath = filePath;
+analyse.imageMiniature = `/uploads/${fileName}`;
+analyse.imageHash = imageHash;
+analyse.qualiteScore = null as any;
+analyse.qualiteOk = false;
+analyse.metadataSupprimees = true;
+analyse.statut = 'en_attente';
+analyse.classePredite = null as any;
+analyse.scoreConfiance = null as any;
+analyse.resultatsComplets = null as any;
+analyse.modeleVersion = null as any;
+analyse.dureeInferenceMs = null as any;
+analyse.messageErreur = null as any;
+analyse.niveauUrgence = null as any;
+analyse.conseils = null as any;
+analyse.supprime = false;
+
+const saved = await this.analyseRepo.save(analyse);
+
+return {
+  analyseId: saved.id,
+  imagePath: saved.imagePath,
+  imageUrl: saved.imageMiniature,
+  statut: saved.statut,
+};
+}
+
+  // ── 2. Vérifier la qualité de l'image (appelé depuis qualite.tsx) ─────────
+  // ✅ Appelle le microservice IA /qualite et met à jour la DB
+  async verifierQualite(analyseId: number, utilisateurId: number) {
+  const analyse = await this.analyseRepo.findOne({
+    where: { id: analyseId, utilisateurId },
+  });
+
+  if (!analyse) {
+    throw new NotFoundException(`Analyse #${analyseId} introuvable`);
+  }
+
+  const iaUrl = this.config.get<string>('IA_SERVICE_URL') || 'http://127.0.0.1:8000';
+
+  try {
+    const imageBuffer = fs.readFileSync(analyse.imagePath);
+    const base64Image = imageBuffer.toString('base64');
+
+    const response = await firstValueFrom(
+      this.httpService.post(
+        `${iaUrl}/qualite`,
+        { image: base64Image },
+        { timeout: 15000 },
+      ),
+    );
+
+    const qualite = response.data;
+
+    await this.analyseRepo.update(analyseId, {
+      qualiteScore: qualite.score_global ?? 0,
+      qualiteOk: qualite.qualite_ok ?? false,
+    });
+
+    return {
+      analyseId,
+      nettete: qualite.nettete ?? 0,
+      luminosite: qualite.luminosite ?? 0,
+      miseAuPoint: qualite.mise_au_point ?? 0,
+      scoreGlobal: qualite.score_global ?? 0,
+      qualiteOk: qualite.qualite_ok ?? false,
+    };
+  } catch (err: any) {
+    console.log('Erreur qualité IA:', err?.response?.data || err?.message);
+
+    throw new BadRequestException(
+      err?.response?.data?.detail || 'Impossible de vérifier la qualité de l’image',
+    );
+  }
+}
+
+  // ── 3. Lancer l'analyse IA complète ──────────────────────────────────────
+  // ✅ Appelé depuis qualite.tsx quand l'utilisateur clique "Lancer l'analyse IA"
+  async lancerAnalyse(analyseId: number, utilisateurId: number): Promise<Analyse> {
+    const analyse = await this.analyseRepo.findOne({
+      where: { id: analyseId, utilisateurId },
+    });
+    if (!analyse) throw new NotFoundException(`Analyse #${analyseId} introuvable`);
+
+    // Mettre en "en_cours"
     await this.analyseRepo.update(analyseId, { statut: 'en_cours' });
+
+    const iaUrl = this.config.get('IA_SERVICE_URL', 'http://localhost:8000');
 
     try {
       const debut = Date.now();
-
-      // Lire l'image et l'envoyer au microservice IA
-      const imageBuffer = fs.readFileSync(imagePath);
+      const imageBuffer = fs.readFileSync(analyse.imagePath);
       const base64Image = imageBuffer.toString('base64');
 
       const response = await firstValueFrom(
-        this.httpService.post(`${iaUrl}/predict`, {
-          image: base64Image,
-        }, { timeout: 30000 }),
+        this.httpService.post(`${iaUrl}/predict`, { image: base64Image }, { timeout: 30000 })
       );
 
       const duree      = Date.now() - debut;
       const resultatIA = response.data;
+      // { classe, score, resultats, conseils, niveau_urgence, modele_version }
 
-      // Mettre à jour avec les résultats IA
-      // Le microservice retourne :
-      // { classe: "acne", score: 87.5, resultats: {...}, conseils: "..." }
+      // ✅ Enregistre tout en DB
       await this.analyseRepo.update(analyseId, {
         statut:           'termine',
         classePredite:    resultatIA.classe,
         scoreConfiance:   resultatIA.score,
         resultatsComplets: resultatIA.resultats,
-        modeleVersion:    resultatIA.modele_version ?? 'v1.0',
+        modeleVersion:    resultatIA.modele_version ?? 'efficientnet_b3_v1',
         dureeInferenceMs: duree,
-        niveauUrgence:    this.determinerUrgence(resultatIA.classe, resultatIA.score),
+        niveauUrgence:    resultatIA.niveau_urgence ?? this.determinerUrgence(resultatIA.classe, resultatIA.score),
         conseils:         resultatIA.conseils ?? '',
       });
 
+      return this.analyseRepo.findOne({ where: { id: analyseId } }) as Promise<Analyse>;
+
     } catch (error: any) {
-  await this.analyseRepo.update(analyseId, {
-    statut: 'erreur',
-    messageErreur: error?.message ?? 'Analyse impossible — réessayez plus tard',
-  });
-}
+      await this.analyseRepo.update(analyseId, {
+        statut:       'erreur',
+        messageErreur: error?.message ?? 'Analyse impossible',
+      });
+      throw new Error('Analyse IA échouée: ' + error?.message);
+    }
   }
 
-  // ── 3. Déterminer le niveau d'urgence ────────────────────
-  private determinerUrgence(
-    classe: string,
-    score: number,
-  ): 'rassurant' | 'consulter' | 'urgence' {
-    const classesUrgentes = ['melanome_suspect', 'plaie_infectee'];
-    const classesConsulter = ['psoriasis', 'eczema', 'allergie_contact'];
-
-    if (classesUrgentes.includes(classe))  return 'urgence';
-    if (classesConsulter.includes(classe)) return 'consulter';
-    return 'rassurant';
-  }
-
-  // ── 4. Historique des analyses d'un utilisateur ──────────
-  async historique(
-    utilisateurId: number,
-    page  = 1,
-    limit = 20,
-    tri   = 'date', // 'date' | 'gravite'
-  ) {
-    const order: any = tri === 'gravite'
-      ? { niveauUrgence: 'DESC' }
-      : { creeLe: 'DESC' };
-
-    const [data, total] = await this.analyseRepo.findAndCount({
-      where:  { utilisateurId, supprime: false },
-      order,
-      skip:   (page - 1) * limit,
-      take:   limit,
+  // ── 4. Statut polling ─────────────────────────────────────────────────────
+  async statut(id: number, utilisateurId: number) {
+    const analyse = await this.analyseRepo.findOne({
+      where:  { id, utilisateurId },
       select: [
-        'id', 'imageMiniature', 'classePredite',
-        'scoreConfiance', 'niveauUrgence', 'statut', 'creeLe',
+        'id', 'statut', 'classePredite', 'scoreConfiance',
+        'niveauUrgence', 'conseils', 'messageErreur',
+        'dureeInferenceMs', 'resultatsComplets', 'imageMiniature',
+        'qualiteScore', 'qualiteOk',
       ],
     });
-
-    return { data, total, page, limit };
+    if (!analyse) throw new NotFoundException(`Analyse #${id} introuvable`);
+    return analyse;
   }
 
-  // ── 5. Détail d'une analyse ───────────────────────────────
+  // ── 5. Détail complet ─────────────────────────────────────────────────────
   async detail(id: number, utilisateurId: number): Promise<Analyse> {
     const analyse = await this.analyseRepo.findOne({
       where: { id, utilisateurId, supprime: false },
@@ -155,86 +214,87 @@ export class AnalysesService {
     return analyse;
   }
 
-  // ── 6. Supprimer une analyse (suppression douce) ─────────
+  // ── 6. Historique ─────────────────────────────────────────────────────────
+  async historique(utilisateurId: number, page = 1, limit = 20, tri = 'date') {
+    const order: any = tri === 'gravite' ? { niveauUrgence: 'DESC' } : { creeLe: 'DESC' };
+    const [data, total] = await this.analyseRepo.findAndCount({
+      where:  { utilisateurId, supprime: false },
+      order,
+      skip:   (page - 1) * limit,
+      take:   limit,
+      select: ['id', 'imageMiniature', 'classePredite', 'scoreConfiance', 'niveauUrgence', 'statut', 'creeLe'],
+    });
+    return { data, total, page, limit };
+  }
+
+  // ── 7. Supprimer ──────────────────────────────────────────────────────────
   async supprimer(id: number, utilisateurId: number) {
     const analyse = await this.detail(id, utilisateurId);
     await this.analyseRepo.update(analyse.id, { supprime: true });
     return { message: `Analyse #${id} supprimée` };
   }
 
-async getDashboardData(userId: number) {
-  const now = new Date();
+  // ── 8. Dashboard ─────────────────────────────────────────────────────────
+  async getDashboardData(userId: number) {
+    
+    const now          = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const totalAnalyses = await this.analyseRepo.count({
-    where: {
-      utilisateurId: userId,
-      supprime: false,
-    },
-  });
-
-  const analysesCeMois = await this.analyseRepo.count({
-    where: {
-      utilisateurId: userId,
-      supprime: false,
-      creeLe: Between(startOfMonth, endOfMonth),
-    },
-  });
-
-  const recent = await this.analyseRepo.find({
-    where: {
-      utilisateurId: userId,
-      supprime: false,
-    },
-    order: {
-      creeLe: 'DESC',
-    },
-    take: 5,
-    select: [
-      'id',
-      'creeLe',
-      'classePredite',
-      'scoreConfiance',
-      'imageMiniature',
-      'niveauUrgence',
-      'statut',
-    ],
-  });
-
-  const recentAnalyses = recent.map((item) => ({
-    id: item.id,
-    date: item.creeLe,
-    title: item.classePredite || 'Analyse dermatologique',
-    confidence: item.scoreConfiance || 0,
-    tag:
-      item.niveauUrgence === 'urgence'
-        ? 'À vérifier'
-        : item.niveauUrgence === 'consulter'
-        ? 'Suivi conseillé'
-        : 'Faible risque',
-    imageUrl: item.imageMiniature || '',
-  }));
-
-  return {
-    totalAnalyses,
-    analysesCeMois,
-    scoreSante: 94,
-    recentAnalyses,
-  };
-}
-  // ── 7. Résultat d'une analyse (polling depuis le mobile) ──
-  // Le mobile appelle cette route toutes les 2s jusqu'à statut = "termine"
-  async statut(id: number, utilisateurId: number) {
-    const analyse = await this.analyseRepo.findOne({
-      where:  { id, utilisateurId },
-      select: [
-        'id', 'statut', 'classePredite', 'scoreConfiance',
-        'niveauUrgence', 'conseils', 'messageErreur', 'dureeInferenceMs',
-      ],
+    const totalAnalyses  = await this.analyseRepo.count({ where: { utilisateurId: userId, supprime: false } });
+    const analysesCeMois = await this.analyseRepo.count({
+      where: { utilisateurId: userId, supprime: false, creeLe: Between(startOfMonth, endOfMonth) },
     });
-    if (!analyse) throw new NotFoundException(`Analyse #${id} introuvable`);
-    return analyse;
+
+    const recent = await this.analyseRepo.find({
+      where:  { utilisateurId: userId, supprime: false },
+      order:  { creeLe: 'DESC' },
+      take:   5,
+      select: ['id', 'creeLe', 'classePredite', 'scoreConfiance', 'imageMiniature', 'niveauUrgence', 'statut'],
+    });
+
+    return {
+      totalAnalyses,
+      analysesCeMois,
+      scoreSante:     Math.min(100, Math.round((totalAnalyses > 0 ? 94 : 0))),
+      recentAnalyses: recent.map(item => ({
+        id:         item.id,
+        date:       item.creeLe,
+        title:      item.classePredite || 'Analyse dermatologique',
+        confidence: item.scoreConfiance || 0,
+        tag:        item.niveauUrgence === 'urgence' ? 'À vérifier'
+                  : item.niveauUrgence === 'consulter' ? 'Suivi conseillé' : 'Faible risque',
+        imageUrl:   item.imageMiniature || '',
+      })),
+    };
   }
+
+  private determinerUrgence(classe: string, score: number): 'rassurant' | 'consulter' | 'urgence' {
+    const urgents   = ['melanome_suspect', 'plaie_infectee', 'carcinome'];
+    const consulter = ['psoriasis', 'eczema', 'dermatite', 'allergie'];
+    if (urgents.some(u => classe?.toLowerCase().includes(u)))   return 'urgence';
+    if (consulter.some(c => classe?.toLowerCase().includes(c))) return 'consulter';
+    return 'rassurant';
+  }
+  private computeScoreSante(analyses: Analyse[]): number {
+  const done = analyses.filter((a) => a.statut === 'termine');
+
+  if (done.length === 0) return 100;
+
+  const avgPenalty =
+    done.reduce((sum, a) => {
+      const urgencePenalty =
+        a.niveauUrgence === 'urgence'
+          ? 40
+          : a.niveauUrgence === 'consulter'
+            ? 20
+            : 0;
+
+      const confidencePenalty = Math.max(0, 100 - Number(a.scoreConfiance || 0)) * 0.15;
+
+      return sum + urgencePenalty + confidencePenalty;
+    }, 0) / done.length;
+
+  return Math.max(0, Math.min(100, Math.round(100 - avgPenalty)));
+}
 }
