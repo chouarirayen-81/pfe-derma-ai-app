@@ -200,26 +200,43 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
 
   // Étape 1 : vérifier ancien MDP et envoyer code
   const handleSendCode = async () => {
-    if (!ancienMdp.trim()) { Alert.alert('Requis', 'Entrez votre ancien mot de passe'); return; }
-    setLoading(true);
-    try {
-      // Envoyer code OTP → backend : POST /utilisateurs/send-verification-code
-      const res = await API.post('/utilisateurs/send-verification-code', {
-  ancienMotDePasse: ancienMdp,
-});
-      setMsgCode(res.data?.message || 'Code envoyé !');
-      setStep(2);
-   } catch (err: any) {
-  const message = err?.response?.data?.message;
-
-  if (err?.response?.status === 401) {
-    Alert.alert('Erreur', message || 'Mot de passe actuel incorrect');
+  if (!ancienMdp.trim()) {
+    Alert.alert('Requis', 'Entrez votre ancien mot de passe');
     return;
   }
 
-  Alert.alert('Erreur', message || 'Impossible d’envoyer le code');
-}}
+  console.log('=== ENVOI CODE START ===');
+  console.log('ancienMdp =', ancienMdp);
 
+  setLoading(true);
+
+  try {
+    const res = await API.post('/utilisateurs/send-verification-code', {
+      ancienMotDePasse: ancienMdp,
+    });
+
+    console.log('REPONSE send-verification-code =', res?.status, res?.data);
+
+    setMsgCode(res?.data?.message || 'Code envoyé !');
+    setStep(2);
+
+    console.log('STEP APRES setStep(2) = 2');
+  } catch (err: any) {
+    console.log(
+      'ERREUR FRONT send-verification-code =',
+      err?.response?.status,
+      err?.response?.data,
+      err?.message,
+    );
+
+    Alert.alert(
+      'Erreur',
+      err?.response?.data?.message || "Impossible d'envoyer l'email de vérification",
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   // Étape 2 : vérifier le code saisi
   const handleVerifyCode = () => {
     if (code.length !== 6) { Alert.alert('Requis', 'Le code doit contenir 6 chiffres'); return; }
@@ -245,41 +262,54 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
     } finally { setLoading(false); }
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex:1 }}>
-        <View style={m.overlay}>
-          <View style={m.sheet}>
-            {/* Header */}
-            <View style={m.header}>
-              <Text style={m.title}>🔒 Changer le mot de passe</Text>
-              <TouchableOpacity onPress={handleClose} style={m.closeBtn}><IconClose/></TouchableOpacity>
-            </View>
+  
+    return (
+  <Modal visible={visible} animationType="slide" transparent>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+    >
+      <View style={m.overlay}>
+        <View style={m.sheet}>
+          <View style={m.header}>
+            <Text style={m.title}>🔒 Changer le mot de passe</Text>
+            <TouchableOpacity onPress={handleClose} style={m.closeBtn}>
+              <IconClose />
+            </TouchableOpacity>
+          </View>
 
-            {/* Indicateur d'étapes */}
-            <View style={m.stepsRow}>
-              {[1,2,3].map(i => (
-                <View key={i} style={{ flexDirection:'row', alignItems:'center' }}>
-                  <View style={[m.stepDot, step >= i && m.stepDotActive, step > i && m.stepDotDone]}>
-                    <Text style={[m.stepTxt, step >= i && m.stepTxtActive]}>
-                      {step > i ? '✓' : i}
-                    </Text>
-                  </View>
-                  {i < 3 && <View style={[m.stepLine, step > i && m.stepLineActive]}/>}
+          <View style={m.stepsRow}>
+            {[1, 2, 3].map((i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View
+                  style={[
+                    m.stepDot,
+                    step >= i && m.stepDotActive,
+                    step > i && m.stepDotDone,
+                  ]}
+                >
+                  <Text style={[m.stepTxt, step >= i && m.stepTxtActive]}>
+                    {step > i ? '✓' : i}
+                  </Text>
                 </View>
-              ))}
-            </View>
+                {i < 3 && <View style={[m.stepLine, step > i && m.stepLineActive]} />}
+              </View>
+            ))}
+          </View>
 
-            {/* ── ÉTAPE 1 : Ancien mot de passe ── */}
+          <ScrollView showsVerticalScrollIndicator={false}>
             {step === 1 && (
-              <View style={{ marginTop:8 }}>
+              <View style={{ marginTop: 8 }}>
                 <Text style={m.stepTitle}>Étape 1 — Vérification</Text>
-                <Text style={m.stepSub}>Entrez votre mot de passe actuel pour confirmer votre identité.</Text>
+                <Text style={m.stepSub}>
+                  Entrez votre mot de passe actuel pour confirmer votre identité.
+                </Text>
+
                 <View style={m.fieldWrap}>
                   <Text style={m.fieldLabel}>Mot de passe actuel</Text>
                   <View style={m.inputRow}>
                     <TextInput
-                      style={[m.input, { flex:1, marginBottom:0 }]}
+                      style={[m.input, { flex: 1, marginBottom: 0 }]}
                       value={ancienMdp}
                       onChangeText={setAncienMdp}
                       placeholder="••••••••"
@@ -287,60 +317,99 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
                       secureTextEntry={!showAncien}
                       autoCapitalize="none"
                     />
-                    <TouchableOpacity onPress={() => setShowAncien(v => !v)} style={m.eyeBtn}>
-                      <Text style={{ fontSize:16 }}>{showAncien ? '🙈' : '👁'}</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowAncien((v) => !v)}
+                      style={m.eyeBtn}
+                    >
+                      <Text style={{ fontSize: 16 }}>
+                        {showAncien ? '🙈' : '👁'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
+
                 <View style={m.infoBox}>
-                  <Text style={m.infoTxt}>📧 Un code de vérification sera envoyé à votre adresse email.</Text>
+                  <Text style={m.infoTxt}>
+                    📧 Un code de vérification sera envoyé à votre adresse email.
+                  </Text>
                 </View>
-                <TouchableOpacity style={[m.saveBtn, loading && { opacity:0.7 }]} onPress={handleSendCode} disabled={loading} activeOpacity={0.85}>
-                  {loading
-                    ? <ActivityIndicator color="#fff" size="small"/>
-                    : <><Text style={m.saveTxt}>Envoyer le code </Text><IconSend/></>
-                  }
+
+                <TouchableOpacity
+                  style={[m.saveBtn, loading && { opacity: 0.7 }]}
+                  onPress={handleSendCode}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text style={m.saveTxt}>Envoyer le code </Text>
+                      <IconSend />
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* ── ÉTAPE 2 : Code OTP ── */}
             {step === 2 && (
-              <View style={{ marginTop:8 }}>
+              <View style={{ marginTop: 8 }}>
                 <Text style={m.stepTitle}>Étape 2 — Code de vérification</Text>
-                <Text style={m.stepSub}>{msgCode || 'Consultez votre boîte email et entrez le code à 6 chiffres.'}</Text>
+                <Text style={m.stepSub}>
+                  {msgCode || 'Consultez votre boîte email et entrez le code à 6 chiffres.'}
+                </Text>
+
                 <View style={m.fieldWrap}>
                   <Text style={m.fieldLabel}>Code reçu par email</Text>
                   <TextInput
-                    style={[m.input, { textAlign:'center', fontSize:24, fontWeight:'900', letterSpacing:8 }]}
+                    style={[
+                      m.input,
+                      {
+                        textAlign: 'center',
+                        fontSize: 24,
+                        fontWeight: '900',
+                        letterSpacing: 8,
+                      },
+                    ]}
                     value={code}
-                    onChangeText={v => setCode(v.replace(/[^0-9]/g,'').slice(0,6))}
+                    onChangeText={(v) =>
+                      setCode(v.replace(/[^0-9]/g, '').slice(0, 6))
+                    }
                     placeholder="000000"
                     placeholderTextColor="#b0cec8"
                     keyboardType="number-pad"
                     maxLength={6}
                   />
                 </View>
+
                 <TouchableOpacity style={m.resendBtn} onPress={handleSendCode}>
                   <Text style={m.resendTxt}>Renvoyer le code</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[m.saveBtn, (loading || code.length < 6) && { opacity:0.6 }]}
-                  onPress={handleVerifyCode} disabled={code.length < 6} activeOpacity={0.85}>
+
+                <TouchableOpacity
+                  style={[m.saveBtn, code.length < 6 && { opacity: 0.6 }]}
+                  onPress={handleVerifyCode}
+                  disabled={code.length < 6}
+                  activeOpacity={0.85}
+                >
                   <Text style={m.saveTxt}>Vérifier le code →</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* ── ÉTAPE 3 : Nouveau mot de passe ── */}
             {step === 3 && (
-              <View style={{ marginTop:8 }}>
+              <View style={{ marginTop: 8 }}>
                 <Text style={m.stepTitle}>Étape 3 — Nouveau mot de passe</Text>
-                <Text style={m.stepSub}>Choisissez un mot de passe fort (min. 8 car., 1 majuscule, 1 chiffre).</Text>
+                <Text style={m.stepSub}>
+                  Choisissez un mot de passe fort (min. 8 caractères, 1 majuscule,
+                  1 chiffre).
+                </Text>
+
                 <View style={m.fieldWrap}>
                   <Text style={m.fieldLabel}>Nouveau mot de passe</Text>
                   <View style={m.inputRow}>
                     <TextInput
-                      style={[m.input, { flex:1, marginBottom:0 }]}
+                      style={[m.input, { flex: 1, marginBottom: 0 }]}
                       value={nouveauMdp}
                       onChangeText={setNouveauMdp}
                       placeholder="••••••••"
@@ -348,11 +417,17 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
                       secureTextEntry={!showNew}
                       autoCapitalize="none"
                     />
-                    <TouchableOpacity onPress={() => setShowNew(v => !v)} style={m.eyeBtn}>
-                      <Text style={{ fontSize:16 }}>{showNew ? '🙈' : '👁'}</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowNew((v) => !v)}
+                      style={m.eyeBtn}
+                    >
+                      <Text style={{ fontSize: 16 }}>
+                        {showNew ? '🙈' : '👁'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
+
                 <View style={m.fieldWrap}>
                   <Text style={m.fieldLabel}>Confirmer le mot de passe</Text>
                   <TextInput
@@ -365,24 +440,41 @@ function ModalChangerMDP({ visible, onClose }: { visible: boolean; onClose: () =
                     autoCapitalize="none"
                   />
                   {confirmMdp.length > 0 && (
-                    <Text style={{ fontSize:12, marginTop:4, color: nouveauMdp === confirmMdp ? C.primary : C.red, fontWeight:'600' }}>
-                      {nouveauMdp === confirmMdp ? '✅ Les mots de passe correspondent' : '❌ Ne correspondent pas'}
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        marginTop: 4,
+                        color: nouveauMdp === confirmMdp ? C.primary : C.red,
+                        fontWeight: '600',
+                      }}
+                    >
+                      {nouveauMdp === confirmMdp
+                        ? '✅ Les mots de passe correspondent'
+                        : '❌ Les mots de passe ne correspondent pas'}
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity style={[m.saveBtn, loading && { opacity:0.7 }]} onPress={handleChangeMDP} disabled={loading} activeOpacity={0.85}>
-                  {loading
-                    ? <ActivityIndicator color="#fff" size="small"/>
-                    : <Text style={m.saveTxt}>Confirmer le changement</Text>
-                  }
+
+                <TouchableOpacity
+                  style={[m.saveBtn, loading && { opacity: 0.7 }]}
+                  onPress={handleChangeMDP}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={m.saveTxt}>Confirmer le changement</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </ScrollView>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
+      </View>
+    </KeyboardAvoidingView>
+  </Modal>
+);
 }
 
 // ─── Modal Support / FAQ ──────────────────────────────────────────────────────
@@ -487,34 +579,35 @@ export default function ProfileScreen() {
   useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
-    try {
-      setLoading(true);
-      const stored = await AsyncStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
+  try {
+    setLoading(true);
 
-      const [profileRes, dashRes] = await Promise.all([
-        API.get('/utilisateurs/profil'),
-        API.get('/utilisateurs/dashboard').catch(() => ({ data: {} })),
-      ]);
+    const stored = await AsyncStorage.getItem('user');
+    if (stored) setUser(JSON.parse(stored));
 
-      const profile = profileRes.data;
-      setUser(profile);
-      await AsyncStorage.setItem('user', JSON.stringify(profile));
-      setTwoFA(profile.doubleAuthActive || false);
+    const [profileRes, dashRes] = await Promise.all([
+      API.get('/utilisateurs/profil'),
+      API.get('/analyses/dashboard').catch(() => ({ data: {} })),
+    ]);
 
-      const dash = dashRes.data;
-      setStats({
-        total:      dash.totalAnalyses  || 0,
-        ceMois:     dash.analysesCeMois || 0,
-        scoreSante: dash.scoreSante     || 0,
-        serie:      dash.serie          || 0,
-      });
-    } catch (err: any) {
-      console.log('Erreur profil:', err?.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const profile = profileRes.data;
+    setUser(profile);
+    await AsyncStorage.setItem('user', JSON.stringify(profile));
+    setTwoFA(profile.doubleAuthActive || false);
+
+    const dash = dashRes.data || {};
+    setStats({
+      total:      dash.totalAnalyses  || 0,
+      ceMois:     dash.analysesCeMois || 0,
+      scoreSante: dash.scoreSante     || 0,
+      serie:      dash.serie          || 0,
+    });
+  } catch (err: any) {
+    console.log('Erreur profil:', err?.response?.data || err?.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Sauvegarder modifications profil ─────────────────────────────
   const handleSaveProfil = async (data: any) => {

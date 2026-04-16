@@ -5,14 +5,18 @@ import * as nodemailer from 'nodemailer';
 export class MailService {
   private async createTransporter() {
     const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const secure = process.env.SMTP_SECURE === 'true';
+    const port = Number(process.env.SMTP_PORT || 465);
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
 
+    const secure =
+      process.env.SMTP_SECURE !== undefined
+        ? process.env.SMTP_SECURE === 'true'
+        : port === 465;
+
     if (!host || !user || !pass) {
       console.error('SMTP config manquante:', {
-        SMTP_HOST: host,
+        SMTP_HOST: host || 'MANQUANT',
         SMTP_PORT: port,
         SMTP_SECURE: secure,
         SMTP_USER: user ? 'OK' : 'MANQUANT',
@@ -35,6 +39,7 @@ export class MailService {
     });
 
     await transporter.verify();
+    console.log('SMTP connecté avec succès');
     return transporter;
   }
 
@@ -70,6 +75,41 @@ export class MailService {
       console.error('Erreur SMTP détaillée:', error);
       throw new InternalServerErrorException(
         "Impossible d'envoyer l'email de vérification",
+      );
+    }
+  }
+
+  async sendLoginAlert(
+    to: string,
+    prenom?: string,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    try {
+      const transporter = await this.createTransporter();
+
+      await transporter.sendMail({
+        from: process.env.MAIL_FROM || process.env.SMTP_USER,
+        to,
+        subject: 'DermaScan - Nouvelle connexion détectée',
+        text: `Bonjour ${prenom || ''}, une nouvelle connexion à votre compte a été détectée. IP: ${ip || 'inconnue'} | Appareil: ${userAgent || 'inconnu'}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color:#00C6A7;">DermaScan</h2>
+            <p>Bonjour ${prenom || ''},</p>
+            <p>Une nouvelle connexion à votre compte a été détectée.</p>
+            <p><strong>IP :</strong> ${ip || 'inconnue'}</p>
+            <p><strong>Appareil :</strong> ${userAgent || 'inconnu'}</p>
+            <p>Si ce n’était pas vous, changez votre mot de passe immédiatement.</p>
+          </div>
+        `,
+      });
+
+      console.log(`Alerte de connexion envoyée à ${to}`);
+    } catch (error: any) {
+      console.error('Erreur SMTP alerte connexion:', error);
+      throw new InternalServerErrorException(
+        "Impossible d'envoyer l'alerte email",
       );
     }
   }
