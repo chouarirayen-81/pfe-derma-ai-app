@@ -402,10 +402,15 @@ setRecentAnalyses(
     const confidence = Math.round(a.confidence ?? a.scoreConfiance ?? 0);
 
     const imageUrl =
-      a.imageUrl ||
-      (a.imageMiniature
-        ? `${BACKEND_BASE_URL}/${String(a.imageMiniature).replace(/^\.?\//, '')}`
-        : 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop');
+      a.imageUrl && String(a.imageUrl).startsWith('http')
+        ? a.imageUrl
+        : a.imageMiniature
+          ? `${BACKEND_BASE_URL}/${String(a.imageMiniature).replace(/^\.?\//, '')}`
+          : a.imageUrl
+            ? `${BACKEND_BASE_URL}/${String(a.imageUrl).replace(/^\.?\//, '')}`
+            : a.imagePath
+              ? `${BACKEND_BASE_URL}/${String(a.imagePath).replace(/^\.?\//, '')}`
+              : 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop';
 
     return {
       id: a.id,
@@ -598,7 +603,7 @@ sexe: normalizeSexe(formData.sexe)
                   params: { analyseId: String(item.id) },
                 })
               }>
-            <Image source={{ uri: item.img }} style={s.analysisImg}/>
+            <Image source={{ uri: item.img }} style={s.analysisImg} />
             <View style={{ flex:1 }}>
               <View style={s.analysisTopRow}>
                 <View style={[s.tagBadge, { backgroundColor: item.bgColor }]}>

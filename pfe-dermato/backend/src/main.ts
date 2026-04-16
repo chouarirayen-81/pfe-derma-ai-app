@@ -3,7 +3,7 @@ import { NestFactory, Reflector }                     from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder }             from '@nestjs/swagger';
 import { AppModule }                                  from './app.module';
-import { join } from 'path/win32';
+import { join } from 'path';
 import * as express from 'express';
 
 async function bootstrap() {

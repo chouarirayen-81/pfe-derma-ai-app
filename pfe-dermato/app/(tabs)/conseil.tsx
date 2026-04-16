@@ -326,61 +326,88 @@ export default function ConseilsScreen() {
   };
 
   const loadConseils = async () => {
+  try {
+    setLoading(true);
+    setError(false);
+
+    const hasPathologie =
+      numericPathologieId !== null &&
+      numericPathologieId !== undefined &&
+      !isNaN(Number(numericPathologieId));
+
+    const conseilsUrl = hasPathologie
+      ? `/conseils/pathologie/${Number(numericPathologieId)}`
+      : '/conseils';
+
+    const statsUrl = hasPathologie
+      ? `/conseils/stats?pathologieId=${Number(numericPathologieId)}`
+      : '/conseils/stats';
+
+    // ✅ On charge d'abord les conseils
+    const resConseils = await API.get(conseilsUrl);
+
+    const rawConseils = resConseils.data?.data ?? resConseils.data ?? [];
+    const data: Conseil[] = Array.isArray(rawConseils) ? rawConseils : [];
+
+    // ✅ On essaie de charger les stats, mais si ça échoue on garde l'écran fonctionnel
+    let statsData: Stats = {
+      total: data.length,
+      categories: new Set(data.map((c) => c.type || 'information')).size,
+      parType: {},
+    };
+
     try {
-      setLoading(true);
-      setError(false);
+      const resStats = await API.get(statsUrl);
+      statsData = resStats.data ?? statsData;
+    } catch (statsErr: any) {
+      console.log(
+        'Erreur chargement stats conseils:',
+        statsErr?.response?.data || statsErr?.message
+      );
+    }
 
-      const conseilsUrl = numericPathologieId
-        ? `/conseils/pathologie/${numericPathologieId}`
-        : '/conseils';
+    setStats(statsData);
 
-      const statsUrl = numericPathologieId
-        ? `/conseils/stats?pathologieId=${numericPathologieId}`
-        : '/conseils/stats';
+    const grouped: Record<string, Conseil[]> = {};
+    data.forEach((c) => {
+      const type = c.type || 'information';
+      if (!grouped[type]) grouped[type] = [];
+      grouped[type].push(c);
+    });
 
-      const [resConseils, resStats] = await Promise.all([
-        API.get(conseilsUrl),
-        API.get(statsUrl),
-      ]);
+    const typeOrder = ['prevention', 'traitement', 'information', 'urgence'];
 
-      const rawConseils = resConseils.data?.data ?? resConseils.data ?? [];
-      const data: Conseil[] = Array.isArray(rawConseils) ? rawConseils : [];
-
-      const statsData: Stats = resStats.data ?? {
-        total: data.length,
-        categories: 0,
-        parType: {},
-      };
-
-      setStats(statsData);
-
-      const grouped: Record<string, Conseil[]> = {};
-      data.forEach((c) => {
-        const type = c.type || 'information';
-        if (!grouped[type]) grouped[type] = [];
-        grouped[type].push(c);
+    const groupesResult: ConseilGroup[] = Object.entries(grouped)
+      .map(([type, items]) => ({
+        type,
+        icon: TYPE_CONFIG[type]?.icon || '💡',
+        color: TYPE_CONFIG[type]?.color || '#00C6A7',
+        bgColor: TYPE_CONFIG[type]?.bgColor || '#f0fdfb',
+        items: items.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0)),
+      }))
+      .sort((a, b) => {
+        const ia = typeOrder.indexOf(a.type);
+        const ib = typeOrder.indexOf(b.type);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
       });
 
-      const typeOrder = ['prevention', 'traitement', 'information', 'urgence'];
-
-      const groupesResult: ConseilGroup[] = Object.entries(grouped)
-        .map(([type, items]) => ({
-          type,
-          icon: TYPE_CONFIG[type]?.icon || '💡',
-          color: TYPE_CONFIG[type]?.color || '#00C6A7',
-          bgColor: TYPE_CONFIG[type]?.bgColor || '#f0fdfb',
-          items: items.sort((a, b) => a.ordre - b.ordre),
-        }))
-        .sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
-
-      setGroupes(groupesResult);
-    } catch (err) {
-      console.error('Erreur chargement conseils:', err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setGroupes(groupesResult);
+  } catch (err: any) {
+    console.log(
+      'Erreur chargement conseils:',
+      err?.response?.data || err?.message
+    );
+    setGroupes([]);
+    setStats({
+      total: 0,
+      categories: 0,
+      parType: {},
+    });
+    setError(true);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadConseils();
