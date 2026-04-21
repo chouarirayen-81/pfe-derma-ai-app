@@ -56,77 +56,146 @@ const TAB_ROUTES: Record<TabId, string> = {
 
 const IconBack = () => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M19 12H5M5 12l7-7M5 12l7 7" stroke={C.text} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M19 12H5M5 12l7-7M5 12l7 7"
+      stroke={C.text}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
+
 const IconFilter = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-    <Path d="M22 3H2l8 9.46V19l4 2v-7.54L22 3z" stroke={C.text} strokeWidth={2} strokeLinejoin="round" />
+    <Path
+      d="M22 3H2l8 9.46V19l4 2v-7.54L22 3z"
+      stroke={C.text}
+      strokeWidth={2}
+      strokeLinejoin="round"
+    />
   </Svg>
 );
+
 const IconSort = () => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path d="M3 6h18M7 12h10M11 18h2" stroke={C.text} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconSearch = () => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
     <Circle cx={11} cy={11} r={8} stroke={C.light} strokeWidth={2} />
     <Path d="M21 21l-4.35-4.35" stroke={C.light} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconChevron = () => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
     <Path d="M9 18l6-6-6-6" stroke={C.light} strokeWidth={2.2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconTrash = () => (
   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-    <Path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" stroke="#ef4444" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"
+      stroke="#ef4444"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
+
 const IconCalendar = () => (
   <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
     <Rect x={3} y={4} width={18} height={18} rx={2} stroke={C.light} strokeWidth={2} />
     <Path d="M16 2v4M8 2v4M3 10h18" stroke={C.light} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconCheck = () => (
   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-    <Path d="M20 6L9 17l-5-5" stroke={C.primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M20 6L9 17l-5-5"
+      stroke={C.primary}
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
+
 const IconX = () => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
     <Path d="M18 6L6 18M6 6l12 12" stroke={C.text} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconHome = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M3 12L12 3l9 9v9H15v-5H9v5H3v-9z" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinejoin="round" fill={active ? C.primary + '22' : 'none'} />
+    <Path
+      d="M3 12L12 3l9 9v9H15v-5H9v5H3v-9z"
+      stroke={active ? C.primary : C.inactive}
+      strokeWidth={2}
+      strokeLinejoin="round"
+      fill={active ? C.primary + '22' : 'none'}
+    />
   </Svg>
 );
+
 const IconClock = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
     <Circle cx={12} cy={12} r={9} stroke={active ? C.primary : C.inactive} strokeWidth={2} />
-    <Path d="M12 7v5l3.5 3.5" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinecap="round" />
+    <Path
+      d="M12 7v5l3.5 3.5"
+      stroke={active ? C.primary : C.inactive}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
   </Svg>
 );
+
 const IconBulb = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 2a7 7 0 00-3.5 13.07V17a1 1 0 001 1h5a1 1 0 001-1v-1.93A7 7 0 0012 2z" stroke={active ? C.primary : C.inactive} strokeWidth={2} fill={active ? C.primary + '22' : 'none'} />
+    <Path
+      d="M12 2a7 7 0 00-3.5 13.07V17a1 1 0 001 1h5a1 1 0 001-1v-1.93A7 7 0 0012 2z"
+      stroke={active ? C.primary : C.inactive}
+      strokeWidth={2}
+      fill={active ? C.primary + '22' : 'none'}
+    />
     <Path d="M10 21h4" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
 const IconUser = ({ active }: { active: boolean }) => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-    <Circle cx={12} cy={8} r={4} stroke={active ? C.primary : C.inactive} strokeWidth={2} fill={active ? C.primary + '22' : 'none'} />
-    <Path d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke={active ? C.primary : C.inactive} strokeWidth={2} strokeLinecap="round" />
+    <Circle
+      cx={12}
+      cy={8}
+      r={4}
+      stroke={active ? C.primary : C.inactive}
+      strokeWidth={2}
+      fill={active ? C.primary + '22' : 'none'}
+    />
+    <Path
+      d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7"
+      stroke={active ? C.primary : C.inactive}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
   </Svg>
 );
+
 const IconCamera = () => (
   <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-    <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#fff" strokeWidth={2} strokeLinejoin="round" />
+    <Path
+      d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
+      stroke="#fff"
+      strokeWidth={2}
+      strokeLinejoin="round"
+    />
     <Circle cx={12} cy={13} r={4} stroke="#fff" strokeWidth={2} />
   </Svg>
 );
@@ -136,6 +205,7 @@ const getColor = (urgence: string) =>
 
 const formatLabel = (value?: string) => {
   if (!value) return 'Analyse dermatologique';
+
   return value
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
@@ -143,15 +213,24 @@ const formatLabel = (value?: string) => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-const makeImageUrl = (imageMiniature?: string, imagePath?: string, imageUrl?: string) => {
-  if (imageUrl && /^https?:\/\//i.test(imageUrl)) return imageUrl;
+const makeImageUrl = (
+  imageMiniature?: string,
+  imagePath?: string,
+  imageUrl?: string,
+) => {
+  if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
+    return imageUrl;
+  }
 
   const raw = imageMiniature || imagePath || '';
   if (!raw) {
-    return 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=120&h=120&fit=crop';
+    return 'https://via.placeholder.com/120x120.png?text=Image';
   }
 
-  const cleaned = String(raw).replace(/^\.?\//, '');
+  const cleaned = String(raw)
+    .replace(/\\/g, '/')
+    .replace(/^\.?\//, '');
+
   return `${BACKEND_BASE_URL}/${cleaned}`;
 };
 
@@ -168,7 +247,9 @@ export default function HistoriqueScreen() {
 
   const isActive = (tabId: TabId): boolean => {
     const route = TAB_ROUTES[tabId];
-    if (tabId === 'accueil') return pathname === '/(tabs)' || pathname === TAB_ROUTES.accueil;
+    if (tabId === 'accueil') {
+      return pathname === '/(tabs)' || pathname === TAB_ROUTES.accueil;
+    }
     return pathname.startsWith(route);
   };
 
@@ -293,18 +374,30 @@ export default function HistoriqueScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={C.card} />
 
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => goTab('accueil')} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.headerBtn}
+          onPress={() => goTab('accueil')}
+          activeOpacity={0.7}
+        >
           <IconBack />
         </TouchableOpacity>
 
         <Text style={s.headerTitle}>Historique</Text>
 
-        <TouchableOpacity style={s.headerBtn} onPress={() => setShowSortModal(true)} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.headerBtn}
+          onPress={() => setShowSortModal(true)}
+          activeOpacity={0.7}
+        >
           <IconSort />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={s.searchWrap}>
           <IconSearch />
           <TextInput
@@ -316,9 +409,15 @@ export default function HistoriqueScreen() {
           />
         </View>
 
-        <TouchableOpacity style={s.sortBadge} onPress={() => setShowSortModal(true)} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.sortBadge}
+          onPress={() => setShowSortModal(true)}
+          activeOpacity={0.8}
+        >
           <IconFilter />
-          <Text style={s.sortBadgeTxt} numberOfLines={1}>{sortLabel}</Text>
+          <Text style={s.sortBadgeTxt} numberOfLines={1}>
+            {sortLabel}
+          </Text>
           <Text style={s.sortBadgeChevron}>›</Text>
         </TouchableOpacity>
 
@@ -338,8 +437,12 @@ export default function HistoriqueScreen() {
                 onPress={() => setActiveFilter(st.id)}
                 activeOpacity={0.8}
               >
-                <Text style={[s.statValue, active && { color: st.accentColor }]}>{st.value}</Text>
-                <Text style={[s.statLabel, active && { color: st.accentColor }]}>{st.label}</Text>
+                <Text style={[s.statValue, active && { color: st.accentColor }]}>
+                  {st.value}
+                </Text>
+                <Text style={[s.statLabel, active && { color: st.accentColor }]}>
+                  {st.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -347,7 +450,9 @@ export default function HistoriqueScreen() {
 
         <View style={s.listHeader}>
           <Text style={s.listTitle}>Toutes les analyses</Text>
-          <Text style={s.listCount}>{sorted.length} résultat{sorted.length > 1 ? 's' : ''}</Text>
+          <Text style={s.listCount}>
+            {sorted.length} résultat{sorted.length > 1 ? 's' : ''}
+          </Text>
         </View>
 
         {loading ? (
@@ -369,15 +474,20 @@ export default function HistoriqueScreen() {
                   router.push({
                     pathname: '/(tabs)/analysescan',
                     params: { analyseId: String(item.id) },
-                  })
+                  } as any)
                 }
               >
-                <Image source={{ uri: item.img }} style={s.cardImg} />
+                <Image
+                  source={{ uri: item.img }}
+                  style={s.cardImg}
+                  onError={() => console.log('Image non chargée :', item.img)}
+                />
 
                 <View style={{ flex: 1 }}>
                   <View style={s.cardTopRow}>
                     <IconCalendar />
                     <Text style={s.cardDate}>{item.date}</Text>
+
                     {item.urgence === 'urgence' && (
                       <View style={s.urgenceBadge}>
                         <Text style={s.urgenceTxt}>⚠ Urgent</Text>
@@ -389,14 +499,20 @@ export default function HistoriqueScreen() {
 
                   <View style={[s.confidenceBadge, { backgroundColor: item.color + '18' }]}>
                     <View style={[s.confidenceDot, { backgroundColor: item.color }]} />
-                    <Text style={[s.confidenceTxt, { color: item.color }]}>{item.confidence}% confiance</Text>
+                    <Text style={[s.confidenceTxt, { color: item.color }]}>
+                      {item.confidence}% confiance
+                    </Text>
                   </View>
                 </View>
 
                 <IconChevron />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.deleteBtn} onPress={() => handleDelete(item.id)} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={s.deleteBtn}
+                onPress={() => handleDelete(item.id)}
+                activeOpacity={0.7}
+              >
                 <IconTrash />
                 <Text style={s.deleteTxt}>Supprimer</Text>
               </TouchableOpacity>
@@ -414,10 +530,15 @@ export default function HistoriqueScreen() {
           { id: 'profil', label: 'Profil', Icon: IconUser },
         ] as any[]).map((tab) => {
           const active = isActive(tab.id);
+
           if (tab.fab) {
             return (
               <View key="scan" style={s.fabWrap}>
-                <TouchableOpacity style={s.fab} onPress={() => goTab('scan')} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={s.fab}
+                  onPress={() => goTab('scan')}
+                  activeOpacity={0.85}
+                >
                   <IconCamera />
                 </TouchableOpacity>
               </View>
@@ -426,7 +547,12 @@ export default function HistoriqueScreen() {
 
           const Icon = tab.Icon;
           return (
-            <TouchableOpacity key={tab.id} style={s.tabItem} onPress={() => goTab(tab.id as TabId)} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={tab.id}
+              style={s.tabItem}
+              onPress={() => goTab(tab.id as TabId)}
+              activeOpacity={0.7}
+            >
               {active && <View style={s.tabActiveBg} />}
               <Icon active={active} />
               <Text style={[s.tabLabel, active && s.tabLabelActive]}>{tab.label}</Text>
@@ -435,7 +561,12 @@ export default function HistoriqueScreen() {
         })}
       </View>
 
-      <Modal visible={showSortModal} animationType="slide" transparent onRequestClose={() => setShowSortModal(false)}>
+      <Modal
+        visible={showSortModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSortModal(false)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
@@ -449,6 +580,7 @@ export default function HistoriqueScreen() {
 
             {sortOptions.map((opt) => {
               const selected = activeSort === opt.id;
+
               return (
                 <TouchableOpacity
                   key={opt.id}
@@ -460,7 +592,12 @@ export default function HistoriqueScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={s.sortOptionIcon}>{opt.icon}</Text>
-                  <Text style={[s.sortOptionLabel, selected && { color: C.primary, fontWeight: '800' }]}>
+                  <Text
+                    style={[
+                      s.sortOptionLabel,
+                      selected && { color: C.primary, fontWeight: '800' },
+                    ]}
+                  >
                     {opt.label}
                   </Text>
                   {selected && <IconCheck />}
@@ -627,6 +764,7 @@ const s = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 16,
+    backgroundColor: '#eef2f7',
   },
   cardTopRow: {
     flexDirection: 'row',

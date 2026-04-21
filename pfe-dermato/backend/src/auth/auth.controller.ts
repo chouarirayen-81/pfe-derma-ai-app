@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Body, HttpCode,
+  Controller, Post, Body, HttpCode,Put ,
   HttpStatus, UseGuards, Request, Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -13,6 +13,9 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 class RegisterDto {
   @IsString()
@@ -62,6 +65,21 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+   @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('verify-reset-code')
+  async verifyResetCode(@Body() dto: VerifyResetCodeDto) {
+    return this.authService.verifyResetCode(dto);
+  }
+
+  @Put('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -75,3 +93,11 @@ export class AuthController {
     return req.user;
   }
 }
+
+
+
+
+
+  
+
+  

@@ -7,10 +7,10 @@ import { Conseil } from './conseil.entity';
 export class ConseilsService {
   constructor(
     @InjectRepository(Conseil)
-    private conseilRepo: Repository<Conseil>,
+    private readonly conseilRepo: Repository<Conseil>,
   ) {}
 
-  // ── Tous les conseils actifs ────────────────────────────────────────────────
+  // ── Tous les conseils actifs
   async findAll() {
     return this.conseilRepo.find({
       where: { actif: true },
@@ -19,11 +19,11 @@ export class ConseilsService {
     });
   }
 
-  // ── Stats depuis la base ───────────────────────────────────────────────────
+  // ── Stats
   async getStats(pathologieId?: number) {
     const where: any = { actif: true };
 
-    if (pathologieId && !Number.isNaN(pathologieId)) {
+    if (typeof pathologieId === 'number' && !Number.isNaN(pathologieId)) {
       where.pathologieId = pathologieId;
     }
 
@@ -34,37 +34,34 @@ export class ConseilsService {
       return acc;
     }, {} as Record<string, number>);
 
-    const categories = Object.keys(parType).length;
-
     return {
       total: conseils.length,
-      categories,
+      categories: Object.keys(parType).length,
       parType,
     };
   }
 
-  // ── Tips généraux pour page accueil ────────────────────────────────────────
+  // ── Tips généraux accueil
   async getTips(limit: number) {
-    return this.conseilRepo.find({
+    const tips = await this.conseilRepo.find({
       where: { type: 'information', actif: true },
       order: { ordre: 'ASC' },
       take: limit,
-      select: ['id', 'titre', 'valeur', 'emoji'],
+      relations: ['pathologie'],
     });
+
+    return tips.map((tip, index) => ({
+      id: tip.id,
+      titre: tip.titre,
+      valeur: tip.valeur || tip.contenu || '',
+      emoji:
+        tip.emoji ||
+        ['💧', '🥗', '😴', '💡', '🛡️'][index % 5],
+    }));
   }
 
-  // ── Conseils selon pathologie ──────────────────────────────────────────────
+  // ── Conseils selon pathologie
   async findByPathologie(pathologieId: number) {
-    // Si 0 ou vide → conseils généraux de prévention
-    if (!pathologieId) {
-      return this.conseilRepo.find({
-        where: { actif: true, type: 'prevention' },
-        order: { ordre: 'ASC' },
-        take: 5,
-        relations: ['pathologie'],
-      });
-    }
-
     return this.conseilRepo.find({
       where: { pathologieId, actif: true },
       order: { ordre: 'ASC' },
@@ -72,7 +69,7 @@ export class ConseilsService {
     });
   }
 
-  // ── Conseils urgents d'une pathologie ──────────────────────────────────────
+  // ── Conseils urgents d'une pathologie
   async findUrgents(pathologieId: number) {
     return this.conseilRepo.find({
       where: { pathologieId, type: 'urgence', actif: true },
@@ -81,7 +78,7 @@ export class ConseilsService {
     });
   }
 
-  // ── Détail d’un conseil ────────────────────────────────────────────────────
+  // ── Détail d’un conseil
   async findOne(id: number): Promise<Conseil> {
     const conseil = await this.conseilRepo.findOne({
       where: { id, actif: true },
@@ -95,27 +92,32 @@ export class ConseilsService {
     return conseil;
   }
 
-  // ── Création ───────────────────────────────────────────────────────────────
+  // ── Création
   async create(data: {
-    pathologieId: number;
+    pathologieId?: number | null;
     titre: string;
     contenu: string;
     type: 'prevention' | 'traitement' | 'urgence' | 'information';
     ordre?: number;
-    valeur?: string;
-    emoji?: string;
+    valeur?: string | null;
+    emoji?: string | null;
   }): Promise<Conseil> {
-    const conseil = this.conseilRepo.create(data);
+    const conseil = this.conseilRepo.create({
+      ...data,
+      ordre: data.ordre ?? 1,
+      actif: true,
+    });
+
     return this.conseilRepo.save(conseil);
   }
 
-  // ── Modification ───────────────────────────────────────────────────────────
+  // ── Modification
   async update(id: number, data: Partial<Conseil>): Promise<Conseil> {
     await this.conseilRepo.update(id, data);
     return this.findOne(id);
   }
 
-  // ── Soft delete ────────────────────────────────────────────────────────────
+  // ── Soft delete
   async supprimer(id: number): Promise<{ message: string }> {
     await this.conseilRepo.update(id, { actif: false });
     return { message: `Conseil #${id} supprimé` };

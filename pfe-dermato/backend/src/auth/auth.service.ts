@@ -1,7 +1,9 @@
 // backend/src/auth/auth.service.ts
 
 import {
-  Injectable, UnauthorizedException,
+  Injectable, UnauthorizedException,BadRequestException,
+  
+  NotFoundException,
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,19 +14,161 @@ import * as bcrypt from 'bcrypt';
 
 import { Utilisateur } from '../utilisateurs/utilisateur.entity';
 import { RefreshToken } from './Refresh-token.entity';
+import { MailService } from '../utilisateurs/mail.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(Utilisateur)
     private utilisateurRepo: Repository<Utilisateur>,
-
+     private readonly mailService: MailService,
     @InjectRepository(RefreshToken)
     private refreshTokenRepo: Repository<RefreshToken>,
 
     private jwtService: JwtService,
     private config: ConfigService,
   ) {}
+
+  //mdp oubliee 
+
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const user = await this.utilisateurRepo
+      .createQueryBuilder('u')
+      .addSelect(['u.passwordResetCodeHash', 'u.passwordResetExpiresAt'])
+      .where('LOWER(u.email) = LOWER(:email)', { email: dto.email })
+      .andWhere('u.actif = :actif', { actif: true })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('Aucun compte trouvé avec cet email');
+    }
+
+    if (user.provider !== 'local') {
+      throw new BadRequestException(
+        'Réinitialisation disponible uniquement pour les comptes locaux',
+      );
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.passwordResetCodeHash = await bcrypt.hash(code, 10);
+    user.passwordResetExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.utilisateurRepo.save(user);
+    await this.mailService.sendPasswordResetCode(user.email, code, user.prenom);
+
+    return {
+      message: 'Code de réinitialisation envoyé par email',
+    };
+  }
+
+  async verifyResetCode(
+    dto: VerifyResetCodeDto,
+  ): Promise<{ message: string; valid: boolean }> {
+    const user = await this.utilisateurRepo
+      .createQueryBuilder('u')
+      .addSelect(['u.passwordResetCodeHash', 'u.passwordResetExpiresAt'])
+      .where('LOWER(u.email) = LOWER(:email)', { email: dto.email })
+      .andWhere('u.actif = :actif', { actif: true })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('Aucun compte trouvé avec cet email');
+    }
+
+    if (!user.passwordResetCodeHash || !user.passwordResetExpiresAt) {
+      throw new BadRequestException(
+        'Aucun code actif. Veuillez demander un nouveau code.',
+      );
+    }
+
+    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
+      user.passwordResetCodeHash = null;
+      user.passwordResetExpiresAt = null;
+      await this.utilisateurRepo.save(user);
+
+      throw new BadRequestException(
+        'Le code a expiré. Veuillez demander un nouveau code.',
+      );
+    }
+
+    const codeValide = await bcrypt.compare(
+      dto.code,
+      user.passwordResetCodeHash,
+    );
+
+    if (!codeValide) {
+      throw new UnauthorizedException('Code de vérification incorrect');
+    }
+
+    return {
+      message: 'Code valide',
+      valid: true,
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const user = await this.utilisateurRepo
+      .createQueryBuilder('u')
+      .addSelect(['u.passwordResetCodeHash', 'u.passwordResetExpiresAt'])
+      .where('LOWER(u.email) = LOWER(:email)', { email: dto.email })
+      .andWhere('u.actif = :actif', { actif: true })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('Aucun compte trouvé avec cet email');
+    }
+
+    if (!user.passwordResetCodeHash || !user.passwordResetExpiresAt) {
+      throw new BadRequestException(
+        'Aucun code actif. Veuillez demander un nouveau code.',
+      );
+    }
+
+    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
+      user.passwordResetCodeHash = null;
+      user.passwordResetExpiresAt = null;
+      await this.utilisateurRepo.save(user);
+
+      throw new BadRequestException(
+        'Le code a expiré. Veuillez demander un nouveau code.',
+      );
+    }
+
+    const codeValide = await bcrypt.compare(
+      dto.code,
+      user.passwordResetCodeHash,
+    );
+
+    if (!codeValide) {
+      throw new UnauthorizedException('Code de vérification incorrect');
+    }
+
+    const memeMotDePasse = await bcrypt.compare(
+      dto.nouveauMotDePasse,
+      user.passwordHash,
+    );
+
+    if (memeMotDePasse) {
+      throw new BadRequestException(
+        'Le nouveau mot de passe doit être différent de l’ancien',
+      );
+    }
+
+    user.passwordHash = await bcrypt.hash(dto.nouveauMotDePasse, 12);
+    user.passwordResetCodeHash = null;
+    user.passwordResetExpiresAt = null;
+
+    await this.utilisateurRepo.save(user);
+
+    return {
+      message: 'Mot de passe réinitialisé avec succès',
+    };
+  }
+
 
   // ── INSCRIPTION ──────────────────────────────────────────
   async register(dto: {
@@ -69,6 +213,8 @@ export class AuthService {
     return this.genererTokens(user);
   }
 
+
+  
   // ── GÉNÉRATION DES TOKENS JWT ─────────────────────────────
   private async genererTokens(user: Utilisateur) {
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -114,3 +260,6 @@ export class AuthService {
     return { message: 'Déconnecté avec succès' };
   }
 }
+
+
+

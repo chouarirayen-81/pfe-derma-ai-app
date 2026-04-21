@@ -7,9 +7,10 @@ import { Analyse }             from './analyse.entity';
 import { AnalysesService } from './analyses.service';
 import { AnalysesController }  from './analyses.controller';
  import { ConfigModule } from '@nestjs/config';
+import { Pathologie } from '../Pathologie/pathologie.entity';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Analyse]),
+    TypeOrmModule.forFeature([Analyse, Pathologie]),
  
     // HttpModule pour appeler le microservice IA FastAPI
     HttpModule.register({ timeout: 30000 }),

@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API = axios.create({
-  baseURL: 'http://192.168.1.107:3000',
+  baseURL: 'http://192.168.1.116:3000',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -75,6 +75,29 @@ export const getAnalyseStatut = async (id: number) => {
 
 export const deleteAnalysis = async (id: number) => {
   const res = await API.delete(`/analyses/${id}`);
+  return res.data;
+};
+//mdpoublie
+export const forgotPassword = async (email: string) => {
+  const res = await API.post('/auth/forgot-password', { email });
+  return res.data;
+};
+
+export const verifyResetCode = async (email: string, code: string) => {
+  const res = await API.post('/auth/verify-reset-code', { email, code });
+  return res.data;
+};
+
+export const resetForgottenPassword = async (
+  email: string,
+  code: string,
+  nouveauMotDePasse: string,
+) => {
+  const res = await API.put('/auth/reset-password', {
+    email,
+    code,
+    nouveauMotDePasse,
+  });
   return res.data;
 };
 

@@ -11,7 +11,6 @@
     "ios": {
       "supportsTablet": true
     },
-    
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -26,29 +25,30 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-   "plugins": [
-  "expo-router",
-  [
-    "expo-splash-screen",
-    {
-      "image": "./assets/images/splash-icon.png",
-      "imageWidth": 200,
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff",
-      "dark": {
-        "backgroundColor": "#000000"
-      }
-    }
-  ],
-  [
-    "expo-image-picker",
-    {
-      "cameraPermission": "DermaScan a besoin d'accéder à votre caméra pour analyser votre peau.",
-      "microphonePermission": false,
-      "photosPermission": "DermaScan a besoin d'accéder à vos photos pour importer une image."
-    }
-  ]
-],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "DermaScan a besoin d'accéder à votre caméra pour analyser votre peau.",
+          "microphonePermission": false,
+          "photosPermission": "DermaScan a besoin d'accéder à vos photos pour importer une image."
+        }
+      ],
+      "expo-build-properties"
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -17,7 +17,7 @@ import { Utilisateur } from './utilisateurs/utilisateur.entity';
 import { AnalysesModule } from './analyses/analyses.module';
 import { AuthModule } from './auth/auth.module';
 import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
-
+import { ConseilsModule } from './conseils/conseil.module';
 // Controller test
 import { AppController } from './app.controller';
 
@@ -50,7 +50,7 @@ import { AppController } from './app.controller';
         charset: 'utf8mb4',
       }),
     }),
-   
+   ConseilsModule,
     AuthModule,
     UtilisateursModule,
     AnalysesModule,

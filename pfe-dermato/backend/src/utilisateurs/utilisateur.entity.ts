@@ -98,14 +98,30 @@ export class Utilisateur {
   tokenVerification?: string;
 
  @Column({
+  name: 'password_change_code',
+  type: 'varchar',
+  length: 255,
+  nullable: true,
+  select: false,
+})
+passwordChangeCode: string | null;
+
+@Column({
+  name: 'password_change_code_expires_at',
+  type: 'datetime',
+  nullable: true,
+  select: false,
+})
+passwordChangeCodeExpiresAt: Date | null;
+
+@Column({
   name: 'password_reset_code_hash',
   type: 'varchar',
   length: 255,
   nullable: true,
   select: false,
 })
-@Exclude()
-passwordResetCodeHash!: string | null;
+passwordResetCodeHash: string | null;
 
 @Column({
   name: 'password_reset_expires_at',
@@ -113,8 +129,7 @@ passwordResetCodeHash!: string | null;
   nullable: true,
   select: false,
 })
-@Exclude()
-passwordResetExpiresAt!: Date | null;
+passwordResetExpiresAt: Date | null;
 
   @Column({ default: true })
   actif!: boolean;

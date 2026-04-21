@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ConseilsService } from './conseils.service';
+import { ConseilsService } from './Conseils.service';
 import { JwtAuthGuard } from '../auth/Jwt-auth.guard';
 
 @Controller('conseils')
@@ -20,22 +20,34 @@ export class ConseilsController {
   @Get('stats')
   async getStats(@Query('pathologieId') pathologieId?: string) {
     const parsedPathologieId = pathologieId ? Number(pathologieId) : undefined;
-    return this.conseilsService.getStats(parsedPathologieId);
+    const data = await this.conseilsService.getStats(parsedPathologieId);
+    return { data };
   }
 
   @Get('tips')
   async getTips(@Query('limit') limit: string = '3') {
-    return this.conseilsService.getTips(Number(limit) || 3);
+    const data = await this.conseilsService.getTips(Number(limit) || 3);
+    return { data };
   }
 
   @Get('pathologie/:pathologieId/urgents')
-  findUrgents(@Param('pathologieId', ParseIntPipe) id: number) {
-    return this.conseilsService.findUrgents(id);
+  async findUrgents(
+    @Param('pathologieId', ParseIntPipe) id: number,
+  ) {
+    const data = await this.conseilsService.findUrgents(id);
+    return { data };
   }
+@Get('test')
+test() {
+  return { ok: true };
+}
 
   @Get('pathologie/:pathologieId')
-  findByPathologie(@Param('pathologieId', ParseIntPipe) id: number) {
-    return this.conseilsService.findByPathologie(id);
+  async findByPathologie(
+    @Param('pathologieId', ParseIntPipe) id: number,
+  ) {
+    const data = await this.conseilsService.findByPathologie(id);
+    return { data };
   }
 
   @Get()
@@ -45,28 +57,32 @@ export class ConseilsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.conseilsService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.conseilsService.findOne(id);
+    return { data };
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() body: any) {
-    return this.conseilsService.create(body);
+  async create(@Body() body: any) {
+    const data = await this.conseilsService.create(body);
+    return { data };
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
   ) {
-    return this.conseilsService.update(id, body);
+    const data = await this.conseilsService.update(id, body);
+    return { data };
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  supprimer(@Param('id', ParseIntPipe) id: number) {
-    return this.conseilsService.supprimer(id);
+  async supprimer(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.conseilsService.supprimer(id);
+    return { data };
   }
 }

@@ -2,7 +2,7 @@
 // ✅ Fichier autonome — 3 étapes : Email → Code OTP → Nouveau mot de passe
 // npm install react-native-keyboard-aware-scroll-view
 
-import React, { useState, useRef, useCallback, forwardRef, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect,forwardRef} from "react";
 import {
   View, Text, StyleSheet, Platform, TouchableOpacity,
   SafeAreaView, TextInput, StatusBar,
@@ -11,6 +11,11 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle, Rect, Polyline } from "react-native-svg";
+import {
+  forgotPassword,
+  verifyResetCode,
+  resetForgottenPassword,
+} from "@/backend/src/api/client";
 
 const { height: H } = Dimensions.get("window");
 
@@ -382,37 +387,157 @@ export default function ForgotPasswordScreen() {
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   // ── Étape 1 : envoi email ──
-  const handleSendEmail = useCallback(() => {
-    if (!email.trim())    { setEmailError("L'email est requis"); shake(); return; }
-    if (!isEmailValid)    { setEmailError("Format d'email invalide"); shake(); return; }
-    setEmailError("");
-    setLoading(true);
-    // TODO: POST /auth/forgot-password { email }
-    setTimeout(() => { setLoading(false); goToStep("otp"); }, 1000);
-  }, [email, isEmailValid, shake]);
+  const handleSendEmail = useCallback(async () => {
+  if (!email.trim()) {
+    setEmailError("L'email est requis");
+    shake();
+    return;
+  }
+
+  if (!isEmailValid) {
+    setEmailError("Format d'email invalide");
+    shake();
+    return;
+  }
+
+  setEmailError("");
+  setLoading(true);
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const res = await forgotPassword(normalizedEmail);
+
+    console.log('forgotPassword =', res);
+
+    restart();
+    setOtp("");
+    setOtpError("");
+    goToStep("otp");
+  } catch (err: any) {
+    console.log(
+      'Erreur forgotPassword =',
+      err?.response?.status,
+      err?.response?.data,
+      err?.message,
+    );
+
+    setEmailError(
+      err?.response?.data?.message || "Impossible d'envoyer le code",
+    );
+    shake();
+  } finally {
+    setLoading(false);
+  }
+}, [email, isEmailValid, shake, restart]);
 
   // ── Étape 2 : vérification OTP ──
-  const handleVerifyOtp = useCallback(() => {
-    if (otp.length < 6) { setOtpError("Entrez les 6 chiffres du code"); shake(); return; }
-    setOtpError("");
-    setLoading(true);
-    // TODO: POST /auth/verify-otp { email, otp }
-    setTimeout(() => { setLoading(false); goToStep("newpassword"); }, 1000);
-  }, [otp, shake]);
+ const handleVerifyOtp = useCallback(async () => {
+  if (otp.length < 6) {
+    setOtpError("Entrez les 6 chiffres du code");
+    shake();
+    return;
+  }
+
+  setOtpError("");
+  setLoading(true);
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const res = await verifyResetCode(normalizedEmail, otp);
+
+    console.log('verifyResetCode =', res);
+
+    goToStep("newpassword");
+  } catch (err: any) {
+    console.log(
+      'Erreur verifyResetCode =',
+      err?.response?.status,
+      err?.response?.data,
+      err?.message,
+    );
+
+    setOtpError(
+      err?.response?.data?.message || "Code de vérification incorrect",
+    );
+    shake();
+  } finally {
+    setLoading(false);
+  }
+}, [otp, email, shake]);
 
   // ── Étape 3 : nouveau mot de passe ──
-  const handleResetPassword = useCallback(() => {
-    let hasError = false;
-    if (!newPwd)              { setPwdError("Le mot de passe est requis"); hasError = true; }
-    else if (newPwd.length < 8) { setPwdError("Minimum 8 caractères"); hasError = true; }
-    if (!confirmPwd)          { setConfirmError("Confirmez le mot de passe"); hasError = true; }
-    else if (newPwd !== confirmPwd) { setConfirmError("Les mots de passe ne correspondent pas"); hasError = true; }
-    if (hasError) { shake(); return; }
-    setPwdError(""); setConfirmError("");
-    setLoading(true);
-    // TODO: POST /auth/reset-password { email, otp, newPassword: newPwd }
-    setTimeout(() => { setLoading(false); goToStep("success"); }, 1000);
-  }, [newPwd, confirmPwd, shake]);
+const handleResetPassword = useCallback(async () => {
+  let hasError = false;
+
+  if (!newPwd) {
+    setPwdError("Le mot de passe est requis");
+    hasError = true;
+  } else if (newPwd.length < 8) {
+    setPwdError("Minimum 8 caractères");
+    hasError = true;
+  } else if (!/[A-Z]/.test(newPwd)) {
+    setPwdError("Ajoutez au moins une majuscule");
+    hasError = true;
+  } else if (!/[0-9]/.test(newPwd)) {
+    setPwdError("Ajoutez au moins un chiffre");
+    hasError = true;
+  }
+
+  if (!confirmPwd) {
+    setConfirmError("Confirmez le mot de passe");
+    hasError = true;
+  } else if (newPwd !== confirmPwd) {
+    setConfirmError("Les mots de passe ne correspondent pas");
+    hasError = true;
+  }
+
+  if (hasError) {
+    shake();
+    return;
+  }
+
+  setPwdError("");
+  setConfirmError("");
+  setLoading(true);
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const res = await resetForgottenPassword(normalizedEmail, otp, newPwd);
+
+    console.log('resetForgottenPassword =', res);
+
+    goToStep("success");
+
+    setTimeout(() => {
+      router.replace("/login");
+    }, 1500);
+  } catch (err: any) {
+    console.log(
+      'Erreur resetForgottenPassword =',
+      err?.response?.status,
+      err?.response?.data,
+      err?.message,
+    );
+
+    const msg =
+      err?.response?.data?.message ||
+      "Impossible de réinitialiser le mot de passe";
+
+    if (
+      msg.toLowerCase().includes('code') ||
+      msg.toLowerCase().includes('expir')
+    ) {
+      setOtpError(msg);
+      goToStep("otp");
+    } else {
+      setPwdError(msg);
+    }
+
+    shake();
+  } finally {
+    setLoading(false);
+  }
+}, [email, otp, newPwd, confirmPwd, shake, router]);
 
   const stepNumber = step === "email" ? 1 : step === "otp" ? 2 : step === "newpassword" ? 3 : 3;
 
@@ -533,18 +658,15 @@ export default function ForgotPasswordScreen() {
               {/* Renvoi du code */}
               <View style={s.resendRow}>
                 {canResend ? (
-                  <TouchableOpacity
-                    onPress={() => { restart(); setOtp(""); setOtpError(""); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={s.resendLink}>Renvoyer le code</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={s.resendTimer}>
-                    Renvoyer dans{" "}
-                    <Text style={{ color: C.primary, fontWeight: "700" }}>{count}s</Text>
-                  </Text>
-                )}
+  <TouchableOpacity onPress={handleSendEmail} activeOpacity={0.7}>
+    <Text style={s.resendLink}>Renvoyer le code</Text>
+  </TouchableOpacity>
+) : (
+  <Text style={s.resendTimer}>
+    Renvoyer dans{" "}
+    <Text style={{ color: C.primary, fontWeight: "700" }}>{count}s</Text>
+  </Text>
+)}
               </View>
 
               <TouchableOpacity

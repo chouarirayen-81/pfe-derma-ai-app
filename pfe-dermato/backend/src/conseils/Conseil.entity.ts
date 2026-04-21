@@ -5,9 +5,11 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Pathologie } from '../Pathologie/pathologie.entity';
-export type TypeConseil =
+
+export type ConseilType =
   | 'prevention'
   | 'traitement'
   | 'urgence'
@@ -18,20 +20,17 @@ export class Conseil {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ nullable: true })
-  pathologieId: number;
+  @Column({ name: 'pathologie_id', type: 'int', nullable: true })
+  pathologieId: number | null;
 
-  @ManyToOne(() => Pathologie, (pathologie) => pathologie.conseils, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'pathologieId' })
+  @ManyToOne(() => Pathologie, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'pathologie_id' })
   pathologie: Pathologie | null;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   titre: string;
 
-  @Column('text')
+  @Column({ type: 'text' })
   contenu: string;
 
   @Column({
@@ -39,20 +38,23 @@ export class Conseil {
     enum: ['prevention', 'traitement', 'urgence', 'information'],
     default: 'information',
   })
-  type: TypeConseil;
+  type: ConseilType;
 
-  @Column({ default: 0 })
+  @Column({ type: 'int', default: 1 })
   ordre: number;
 
-  @Column({ nullable: true })
-  valeur: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  valeur: string | null;
 
-  @Column({ nullable: true })
-  emoji: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  emoji: string | null;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   actif: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'cree_le' })
   creeLe: Date;
+
+  @UpdateDateColumn({ name: 'mis_a_jour_le' })
+  misAJourLe: Date;
 }

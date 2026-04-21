@@ -76,6 +76,10 @@ export class Analyse {
   @Column({ default: false })
   supprime: boolean;
 
+  @Column({ name: 'pathologie_id', type: 'int', nullable: true })
+pathologieId: number | null;
+
+
   @CreateDateColumn({ name: 'cree_le' })
   creeLe: Date;
 

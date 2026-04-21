@@ -1,5 +1,4 @@
-// app/(tabs)/analysescan.tsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, usePathname, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -13,7 +12,7 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import API from '@/backend/src/api/client';
 
 const BACKEND_BASE_URL = 'http://192.168.1.107:3000';
@@ -31,8 +30,33 @@ const C = {
 };
 
 type TabId = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
+type ConseilType = 'prevention' | 'traitement' | 'urgence' | 'information';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+interface ConseilDb {
+  id: number;
+  titre: string;
+  contenu: string;
+  type: ConseilType;
+  ordre: number;
+  pathologieId?: number | null;
+  pathologie?: { id?: number; nom?: string } | null;
+}
+
+interface AnalysisNormalized {
+  id: number | null;
+  creeLe: string | null;
+  dureeInferenceMs: number | null;
+  classePredite: string;
+  scoreConfiance: number;
+  niveauUrgence: string;
+  modeleVersion: string;
+  resultatsComplets: Record<string, number>;
+  imagePath: string;
+  imageMiniature: string;
+  pathologieId: number | null;
+  conseils: string;
+}
+
 const IconBack = () => (
   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
     <Path d="M19 12H5M5 12l7-7M5 12l7 7" stroke={C.text} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
@@ -128,7 +152,6 @@ const IconCamera = () => (
   </Svg>
 );
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getColor = (urgence?: string) =>
   urgence === 'urgence' ? C.red : urgence === 'consulter' ? C.orange : '#10b981';
 
@@ -161,7 +184,45 @@ const formatLabel = (value?: string) => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-// ─── Animated confidence bar ──────────────────────────────────────────────────
+function normalizeAnalysis(raw: any): AnalysisNormalized {
+  return {
+    id: raw?.id ?? null,
+    creeLe: raw?.creeLe ?? raw?.cree_le ?? null,
+    dureeInferenceMs: raw?.dureeInferenceMs ?? raw?.duree_inference_ms ?? null,
+    classePredite: raw?.classePredite ?? raw?.classe_predite ?? '',
+    scoreConfiance: Number(raw?.scoreConfiance ?? raw?.score_confiance ?? 0),
+    niveauUrgence: raw?.niveauUrgence ?? raw?.niveau_urgence ?? 'rassurant',
+    modeleVersion: raw?.modeleVersion ?? raw?.modele_version ?? 'EfficientNet B3',
+    resultatsComplets: raw?.resultatsComplets ?? raw?.resultats_complets ?? {},
+    imagePath: raw?.imagePath ?? raw?.image_path ?? '',
+    imageMiniature: raw?.imageMiniature ?? raw?.image_miniature ?? '',
+    pathologieId: Number(
+      raw?.pathologieId ??
+      raw?.pathologie_id ??
+      raw?.pathologie?.id ??
+      0
+    ) || null,
+    conseils: raw?.conseils ?? '',
+  };
+}
+
+function getImageUrl(analyse: AnalysisNormalized): string {
+  const rawImage = analyse.imageMiniature || analyse.imagePath || '';
+  if (!rawImage) return '';
+
+  const value = String(rawImage).trim();
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  const normalized = value
+    .replace(/\\/g, '/')
+    .replace(/^\.?\//, '');
+
+  return `${BACKEND_BASE_URL}/${normalized}`;
+}
+
 function ConfidenceBar({ value, color }: { value: number; color: string }) {
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -185,17 +246,17 @@ function ConfidenceBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AnalysisDetailScreen() {
   const router = useRouter();
   const pathname = usePathname();
-
   const params = useLocalSearchParams<{ analyseId?: string | string[] }>();
   const analyseId = Array.isArray(params.analyseId) ? params.analyseId[0] : params.analyseId;
 
-  const [analyse, setAnalyse] = useState<any>(null);
+  const [analyse, setAnalyse] = useState<AnalysisNormalized | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [conseilsDb, setConseilsDb] = useState<ConseilDb[]>([]);
+  const [conseilsLoading, setConseilsLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isActive = (tabId: TabId): boolean => {
@@ -236,11 +297,14 @@ export default function AnalysisDetailScreen() {
       return;
     }
 
-    chargerStatut();
-
-    pollRef.current = setInterval(async () => {
+    const startPolling = async () => {
       await chargerStatut();
-    }, 2000);
+      pollRef.current = setInterval(async () => {
+        await chargerStatut();
+      }, 2000);
+    };
+
+    startPolling();
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -250,22 +314,57 @@ export default function AnalysisDetailScreen() {
   const chargerStatut = async () => {
     try {
       const res = await API.get(`/analyses/${analyseId}/statut`);
-      const data = res.data;
+      const data = res.data?.data ?? res.data;
 
-      if (data.statut === 'termine') {
+      if (data?.statut === 'termine') {
         if (pollRef.current) clearInterval(pollRef.current);
+
         const detailRes = await API.get(`/analyses/${analyseId}`);
-        setAnalyse(detailRes.data);
+        const rawAnalyse = detailRes.data?.data ?? detailRes.data;
+        const normalized = normalizeAnalysis(rawAnalyse);
+
+        setAnalyse(normalized);
         setLoading(false);
-      } else if (data.statut === 'erreur') {
+      } else if (data?.statut === 'erreur') {
         if (pollRef.current) clearInterval(pollRef.current);
-        setError(data.messageErreur || 'Analyse échouée');
+        setError(data?.messageErreur || data?.message_erreur || 'Analyse échouée');
         setLoading(false);
       }
     } catch (err: any) {
       console.log('Erreur polling:', err?.response?.data || err?.message);
+      setError('Impossible de charger le résultat de l’analyse');
+      setLoading(false);
     }
   };
+
+  const detectedPathologieId = useMemo(() => {
+    const n = Number(analyse?.pathologieId ?? 0);
+    return Number.isNaN(n) || !n ? null : n;
+  }, [analyse]);
+
+  useEffect(() => {
+    const loadConseils = async () => {
+      try {
+        if (!detectedPathologieId) {
+          setConseilsDb([]);
+          return;
+        }
+
+        setConseilsLoading(true);
+        const res = await API.get(`/conseils/pathologie/${detectedPathologieId}`);
+        const raw = res.data?.data ?? res.data ?? [];
+        const list: ConseilDb[] = Array.isArray(raw) ? raw : [];
+        setConseilsDb(list.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0)));
+      } catch (err: any) {
+        console.log('Erreur chargement conseils DB:', err?.response?.data || err?.message);
+        setConseilsDb([]);
+      } finally {
+        setConseilsLoading(false);
+      }
+    };
+
+    loadConseils();
+  }, [detectedPathologieId]);
 
   const confidenceColor = analyse ? getColor(analyse.niveauUrgence) : C.primary;
 
@@ -280,12 +379,21 @@ export default function AnalysisDetailScreen() {
         }))
     : [];
 
-  const conseilsList = analyse?.conseils
+  const fallbackConseilsList = analyse?.conseils
     ? String(analyse.conseils)
         .split('.')
         .filter((c: string) => c.trim().length > 5)
-        .map((c: string) => c.trim() + '.')
+        .map((c: string, idx: number) => ({
+          id: idx + 1,
+          titre: 'Conseil',
+          contenu: c.trim() + '.',
+          type: 'information' as ConseilType,
+          ordre: idx + 1,
+        }))
     : [];
+
+  const displayedConseils =
+    conseilsDb.length > 0 ? conseilsDb.slice(0, 2) : fallbackConseilsList.slice(0, 2);
 
   if (loading) {
     return (
@@ -302,32 +410,25 @@ export default function AnalysisDetailScreen() {
     );
   }
 
- 
-
-  if (error) {
+  if (error || !analyse) {
     return (
       <SafeAreaView style={[s.safe, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
         <Text style={{ fontSize: 48, marginBottom: 16 }}>⚠️</Text>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 8 }}>Analyse impossible</Text>
-        <Text style={{ fontSize: 14, color: C.light, textAlign: 'center', marginBottom: 24 }}>{error}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 8 }}>
+          Analyse impossible
+        </Text>
+        <Text style={{ fontSize: 14, color: C.light, textAlign: 'center', marginBottom: 24 }}>
+          {error || 'Impossible de charger les détails de l’analyse.'}
+        </Text>
         <TouchableOpacity style={s.retryBtn} onPress={() => router.push('/(tabs)/scan')} activeOpacity={0.88}>
           <Text style={s.retryTxt}>Réessayer</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
-const rawImage =
-  analyse?.imageMiniature ||
-  analyse?.imagePath ||
-  '';
 
-const imageUrl = rawImage
-  ? `${BACKEND_BASE_URL}/${String(rawImage).replace(/^\.?\//, '')}`
-  : '';
+  const imageUrl = getImageUrl(analyse);
 
-console.log('analyse detail =', analyse);
-console.log('rawImage =', rawImage);
-console.log('imageUrl =', imageUrl);
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.card} />
@@ -355,11 +456,13 @@ console.log('imageUrl =', imageUrl);
             <View style={s.metaItem}>
               <IconCalendar />
               <Text style={s.metaTxt}>
-                {new Date(analyse.creeLe).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
+                {analyse.creeLe
+                  ? new Date(analyse.creeLe).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : '--'}
               </Text>
             </View>
 
@@ -370,34 +473,37 @@ console.log('imageUrl =', imageUrl);
           </View>
 
           <View style={s.heroBody}>
-  {imageUrl ? (
-    <Image
-      source={{ uri: imageUrl }}
-      style={s.heroImg}
-      resizeMode="cover"
-    />
-  ) : (
-    <View style={[s.heroImg, { backgroundColor: C.border, alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ fontSize: 24 }}>🔬</Text>
-    </View>
-  )}
+            {imageUrl ? (
+              <Image
+    source={{ uri: imageUrl }}
+    style={s.heroImg}
+    resizeMode="cover"
+    onError={() => console.log('Image analyse non chargée :', imageUrl)}
+  />
+            ) : (
+              <View style={[s.heroImg, { backgroundColor: C.border, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ fontSize: 24 }}>🔬</Text>
+              </View>
+            )}
 
-  <View style={{ flex: 1 }}>
-    <Text style={s.heroTitle}>{formatLabel(analyse.classePredite)}</Text>
-    <Text style={s.heroSubTitle}>Résultat principal détecté par le modèle IA</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.heroTitle}>{formatLabel(analyse.classePredite)}</Text>
+              <Text style={s.heroSubTitle}>Résultat principal détecté par le modèle IA</Text>
 
-    <View style={[s.statusBadge, { backgroundColor: confidenceColor + '20' }]}>
-      <View style={[s.statusDot, { backgroundColor: confidenceColor }]} />
-      <Text style={[s.statusTxt, { color: confidenceColor }]}>
-        {getTag(analyse.niveauUrgence)}
-      </Text>
-    </View>
-  </View>
-</View>
+              <View style={[s.statusBadge, { backgroundColor: confidenceColor + '20' }]}>
+                <View style={[s.statusDot, { backgroundColor: confidenceColor }]} />
+                <Text style={[s.statusTxt, { color: confidenceColor }]}>
+                  {getTag(analyse.niveauUrgence)}
+                </Text>
+              </View>
+            </View>
+          </View>
 
           <View style={s.confRow}>
             <Text style={s.confLabel}>Niveau de confiance</Text>
-            <Text style={[s.confPct, { color: confidenceColor }]}>{Math.round(analyse.scoreConfiance || 0)}%</Text>
+            <Text style={[s.confPct, { color: confidenceColor }]}>
+              {Math.round(analyse.scoreConfiance || 0)}%
+            </Text>
           </View>
 
           <ConfidenceBar value={analyse.scoreConfiance || 0} color={confidenceColor} />
@@ -419,12 +525,22 @@ console.log('imageUrl =', imageUrl);
 
             <View style={s.summaryDivider} />
 
-            <View style={s.summaryRow}>
+          <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Niveau</Text>
               <Text style={[s.summaryValue, { color: confidenceColor }]}>
                 {getTag(analyse.niveauUrgence)}
               </Text>
             </View>
+
+            {detectedPathologieId ? (
+              <>
+                <View style={s.summaryDivider} />
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>Pathologie ID</Text>
+                  <Text style={s.summaryValue}>{detectedPathologieId}</Text>
+                </View>
+              </>
+            ) : null}
           </View>
 
           <Text style={s.modeleTxt}>Modèle : {analyse.modeleVersion || 'EfficientNet B3'}</Text>
@@ -467,18 +583,61 @@ console.log('imageUrl =', imageUrl);
           </View>
         </View>
 
-        {conseilsList.length > 0 && (
+        {conseilsLoading ? (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Conseils personnalisés</Text>
             <View style={s.conseilsCard}>
-              {conseilsList.map((tip: string, i: number) => (
-                <View key={i} style={[s.conseilRow, i < conseilsList.length - 1 && s.conseilBorder]}>
+              <Text style={s.conseilTxt}>Chargement des conseils...</Text>
+            </View>
+          </View>
+        ) : detectedPathologieId === null ? (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Conseils personnalisés</Text>
+            <View style={s.conseilsCard}>
+              <Text style={s.conseilTxt}>
+                Aucun pathologieId n’a été reçu depuis le backend pour cette analyse.
+              </Text>
+            </View>
+          </View>
+        ) : displayedConseils.length > 0 ? (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Conseils personnalisés</Text>
+
+            <View style={s.conseilsCard}>
+              {displayedConseils.map((tip, i) => (
+                <View key={tip.id} style={[s.conseilRow, i < displayedConseils.length - 1 && s.conseilBorder]}>
                   <View style={s.conseilBullet}>
                     <Text style={s.conseilBulletTxt}>{i + 1}</Text>
                   </View>
-                  <Text style={s.conseilTxt}>{tip}</Text>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.conseilTitle}>{tip.titre}</Text>
+                    <Text style={s.conseilTxt}>{tip.contenu}</Text>
+                  </View>
                 </View>
               ))}
+            </View>
+
+            <TouchableOpacity
+              style={s.seeAllBtn}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/conseil',
+                  params: { pathologieId: String(detectedPathologieId) },
+                })
+              }
+            >
+              <Text style={s.seeAllBtnTxt}>Voir tous les conseils</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Conseils personnalisés</Text>
+            <View style={s.conseilsCard}>
+              <Text style={s.conseilTxt}>
+                Aucun conseil trouvé pour cette pathologie.
+              </Text>
             </View>
           </View>
         )}
@@ -838,11 +997,31 @@ const s = StyleSheet.create({
     fontWeight: '800',
     color: C.primary,
   },
+  conseilTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.text,
+    marginBottom: 4,
+  },
   conseilTxt: {
     flex: 1,
     fontSize: 13,
     color: C.text,
     lineHeight: 20,
+  },
+
+  seeAllBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: C.primary,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  seeAllBtnTxt: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 13,
   },
 
   alertBox: {

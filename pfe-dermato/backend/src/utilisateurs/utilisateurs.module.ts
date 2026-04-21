@@ -10,6 +10,6 @@ import { MailService } from './mail.service';
   imports: [TypeOrmModule.forFeature([Utilisateur])],
   controllers: [UtilisateursController],
   providers: [UtilisateursService, MailService],
-  exports: [UtilisateursService],
+exports: [UtilisateursService, MailService],
 })
 export class UtilisateursModule {}

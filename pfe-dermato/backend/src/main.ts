@@ -1,46 +1,46 @@
-// backend/src/main.ts
-import { NestFactory, Reflector }                     from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder }             from '@nestjs/swagger';
-import { AppModule }                                  from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 import { join } from 'path';
 import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ Validation globale
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist:           true,
+      whitelist: true,
       forbidNonWhitelisted: true,
-      transform:           true,
+      transform: true,
     }),
   );
 
-  // ✅ Serializer (pour @Exclude sur passwordHash)
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector)),
   );
 
-  // ✅ CORS pour React Native
   app.enableCors({
-    origin: '*',  // en prod : mettre ton domaine
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
-  // ✅ Swagger
+
+  // ✅ dossier réel : pfe-dermato/backend/uploads
+  // __dirname fonctionne en src et en dist
+  const uploadsPath = join(__dirname, '..', 'uploads');
+  app.use('/uploads', express.static(uploadsPath));
+
   const config = new DocumentBuilder()
     .setTitle('DermaScan API')
     .setDescription('Documentation de API dermatologique')
     .setVersion('1.0')
     .addBearerAuth(
       {
-        type:         'http',
-        scheme:       'bearer',
+        type: 'http',
+        scheme: 'bearer',
         bearerFormat: 'JWT',
-        description:  'Collez votre accessToken ici',
+        description: 'Collez votre accessToken ici',
       },
       'access-token',
     )
@@ -51,7 +51,9 @@ app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
+
   console.log(`✅ Backend demarre sur http://localhost:${port}`);
+  console.log(`📁 Uploads exposes depuis: ${uploadsPath}`);
   console.log(`📘 Swagger disponible sur http://localhost:${port}/api`);
 }
 bootstrap();
