@@ -22,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 type TabId = 'accueil' | 'historique' | 'scan' | 'conseils' | 'profil';
 
-const BACKEND_BASE_URL = 'http://192.168.1.116:3000';
+const BACKEND_BASE_URL = 'http://192.168.1.112:3000';
 
 interface Analysis {
   id: number;
