@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Conseil, getConseils } from "../api/conseils";
+import {
+  Conseil,
+  deleteConseil,
+  getConseils,
+  updateConseil,
+} from "../api/conseils";
 
 const formatDate = (date?: string) => {
   if (!date) return "-";
@@ -13,6 +18,19 @@ const Conseils = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [editingConseil, setEditingConseil] = useState<Conseil | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [formTitle, setFormTitle] = useState("");
+  const [formContent, setFormContent] = useState("");
+  const [formPathologieId, setFormPathologieId] = useState("");
+  const [formType, setFormType] = useState<
+    "prevention" | "traitement" | "urgence" | "information"
+  >("information");
+  const [formOrdre, setFormOrdre] = useState("");
+  const [formValeur, setFormValeur] = useState("");
+  const [formEmoji, setFormEmoji] = useState("");
 
   const loadConseils = async () => {
     try {
@@ -55,6 +73,82 @@ const Conseils = () => {
     conseils.map((item) => item.category).filter(Boolean)
   ).size;
 
+  const openEditModal = (conseil: Conseil) => {
+    setEditingConseil(conseil);
+    setFormTitle(conseil.title || "");
+    setFormContent(conseil.content || "");
+    setFormPathologieId(
+      conseil.pathologieId !== null && conseil.pathologieId !== undefined
+        ? String(conseil.pathologieId)
+        : ""
+    );
+    setFormType(conseil.type || "information");
+    setFormOrdre(
+      conseil.ordre !== null && conseil.ordre !== undefined
+        ? String(conseil.ordre)
+        : ""
+    );
+    setFormValeur(conseil.valeur || "");
+    setFormEmoji(conseil.emoji || "");
+  };
+
+  const closeEditModal = () => {
+    setEditingConseil(null);
+    setFormTitle("");
+    setFormContent("");
+    setFormPathologieId("");
+    setFormType("information");
+    setFormOrdre("");
+    setFormValeur("");
+    setFormEmoji("");
+  };
+
+  const handleUpdateConseil = async () => {
+    if (!editingConseil) return;
+
+    try {
+      setSaving(true);
+
+      await updateConseil(editingConseil.id, {
+        title: formTitle,
+        content: formContent,
+        pathologieId: formPathologieId ? Number(formPathologieId) : null,
+        type: formType,
+        ordre: formOrdre ? Number(formOrdre) : null,
+        valeur: formValeur,
+        emoji: formEmoji,
+      });
+
+      closeEditModal();
+      await loadConseils();
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ||
+          "Impossible de modifier ce conseil."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteConseil = async (id: number | string) => {
+    const confirmed = window.confirm(
+      "Voulez-vous vraiment supprimer ce conseil ?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteConseil(id);
+      await loadConseils();
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ||
+          "Impossible de supprimer ce conseil."
+      );
+    }
+  };
+
   return (
     <div className="space-y-7">
       <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/75 p-7 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl">
@@ -72,8 +166,7 @@ const Conseils = () => {
             </h1>
 
             <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-              Centralise les recommandations de prévention et d’orientation dans
-              une interface élégante, claire et rassurante.
+              Centralise les recommandations de prévention et d’orientation.
             </p>
           </div>
 
@@ -118,53 +211,18 @@ const Conseils = () => {
           </div>
 
           <div className="w-full lg:max-w-md">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M21 21l-4.35-4.35" />
-                  <circle cx="11" cy="11" r="6.5" />
-                </svg>
-              </span>
-
-              <input
-                type="text"
-                placeholder="Rechercher un conseil..."
-                className="w-full rounded-2xl border border-teal-100 bg-white px-12 py-4 text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Rechercher un conseil..."
+              className="w-full rounded-2xl border border-teal-100 bg-white px-4 py-3 text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
 
-        {loading && (
-          <div className="mt-6 grid grid-cols-1 gap-4">
-            {[1, 2, 3].map((item) => (
-              <div
-                key={item}
-                className="h-28 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
-              />
-            ))}
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-5 text-red-600">
-            <p>{error}</p>
-            <button
-              onClick={loadConseils}
-              className="mt-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
-            >
-              Réessayer
-            </button>
-          </div>
-        )}
+        {loading && <p className="mt-6 text-slate-500">Chargement...</p>}
+        {!loading && error && <p className="mt-6 text-red-600">{error}</p>}
 
         {!loading && !error && (
           <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -176,7 +234,7 @@ const Conseils = () => {
               filteredConseils.map((conseil) => (
                 <div
                   key={conseil.id}
-                  className="group rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(20,184,166,0.10)]"
+                  className="rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,0.05)]"
                 >
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
@@ -187,19 +245,6 @@ const Conseils = () => {
                       <h4 className="mt-3 text-xl font-bold tracking-tight text-slate-800">
                         {conseil.title || "Conseil médical"}
                       </h4>
-                    </div>
-
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-400 text-white shadow-md">
-                      <svg
-                        className="h-6 w-6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M9 12l2 2l4-4" />
-                        <path d="M12 22c4.97 0 9-4.03 9-9s-4.03-9-9-9s-9 4.03-9 9s4.03 9 9 9Z" />
-                      </svg>
                     </div>
                   </div>
 
@@ -212,9 +257,21 @@ const Conseils = () => {
                       Créé le {formatDate(conseil.createdAt)}
                     </span>
 
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      Santé & prévention
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(conseil)}
+                        className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        Modifier
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteConseil(conseil.id)}
+                        className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -222,8 +279,163 @@ const Conseils = () => {
           </div>
         )}
       </section>
+
+      {editingConseil && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-white/70 bg-white p-6 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800">
+                  Modifier le conseil
+                </h3>
+              </div>
+
+              <button
+                onClick={closeEditModal}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input label="Titre" value={formTitle} onChange={setFormTitle} />
+              <Input
+                label="Pathologie ID"
+                value={formPathologieId}
+                onChange={setFormPathologieId}
+                type="number"
+              />
+              <Input
+                label="Ordre"
+                value={formOrdre}
+                onChange={setFormOrdre}
+                type="number"
+              />
+              <Input label="Valeur" value={formValeur} onChange={setFormValeur} />
+              <Input label="Emoji" value={formEmoji} onChange={setFormEmoji} />
+
+              <SelectField
+                label="Type"
+                value={formType}
+                onChange={(v) =>
+                  setFormType(
+                    v as "prevention" | "traitement" | "urgence" | "information"
+                  )
+                }
+                options={[
+                  { value: "information", label: "information" },
+                  { value: "prevention", label: "prevention" },
+                  { value: "traitement", label: "traitement" },
+                  { value: "urgence", label: "urgence" },
+                ]}
+              />
+            </div>
+
+            <div className="mt-4">
+              <TextAreaField
+                label="Contenu"
+                value={formContent}
+                onChange={setFormContent}
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={closeEditModal}
+                className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-200"
+              >
+                Annuler
+              </button>
+
+              <button
+                onClick={handleUpdateConseil}
+                disabled={saving}
+                className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 disabled:opacity-70"
+              >
+                {saving ? "Enregistrement..." : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+const Input = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) => (
+  <div>
+    <label className="mb-2 block text-sm font-semibold text-slate-700">
+      {label}
+    </label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+    />
+  </div>
+);
+
+const SelectField = ({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) => (
+  <div>
+    <label className="mb-2 block text-sm font-semibold text-slate-700">
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const TextAreaField = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <div>
+    <label className="mb-2 block text-sm font-semibold text-slate-700">
+      {label}
+    </label>
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={5}
+      className="w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+    />
+  </div>
+);
 
 export default Conseils;

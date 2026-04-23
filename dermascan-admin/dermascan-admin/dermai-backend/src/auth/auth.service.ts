@@ -1,21 +1,56 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+
+import { UtilisateurEntity } from '../database/entities/utilisateur.entity';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    @InjectRepository(UtilisateurEntity)
+    private readonly usersRepository: Repository<UtilisateurEntity>,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  private async verifyPassword(plainPassword: string, storedPassword: string) {
+    if (!storedPassword) return false;
+
+    const looksLikeBcrypt =
+      storedPassword.startsWith('$2a$') ||
+      storedPassword.startsWith('$2b$') ||
+      storedPassword.startsWith('$2y$');
+
+    if (looksLikeBcrypt) {
+      return bcrypt.compare(plainPassword, storedPassword);
+    }
+
+    // Fallback dev uniquement
+    return plainPassword === storedPassword;
+  }
 
   async login(email: string, password: string) {
-    if (email !== 'admin@test.com' || password !== '123456') {
+    const user = await this.usersRepository.findOne({
+      where: {
+        email,
+        role: 'admin',
+      },
+    });
+
+    if (!user) {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
-    const user = {
-      id: 1,
-      name: 'Admin DermAI',
-      email,
-      role: 'admin',
-    };
+    if (!user.actif) {
+      throw new UnauthorizedException('Compte inactif');
+    }
+
+    const passwordOk = await this.verifyPassword(password, user.passwordHash);
+
+    if (!passwordOk) {
+      throw new UnauthorizedException('Identifiants invalides');
+    }
 
     const payload = {
       sub: user.id,
@@ -27,7 +62,12 @@ export class AuthService {
 
     return {
       access_token,
-      user,
+      user: {
+        id: user.id,
+        name: `${user.prenom ?? ''} ${user.nom ?? ''}`.trim(),
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 }

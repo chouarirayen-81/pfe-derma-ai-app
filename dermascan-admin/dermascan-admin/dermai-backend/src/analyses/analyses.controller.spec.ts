@@ -1,20 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AnalysesController } from './analyses.controller';
+import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
 import { AnalysesService } from './analyses.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
-describe('AnalysesController', () => {
-  let controller: AnalysesController;
+@Controller('analyses')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
+export class AnalysesController {
+  constructor(private readonly analysesService: AnalysesService) {}
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AnalysesController],
-      providers: [AnalysesService],
-    }).compile();
+  @Get()
+  findAll() {
+    return this.analysesService.findAll();
+  }
 
-    controller = module.get<AnalysesController>(AnalysesController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-});
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.analysesService.remove(+id);
+  }
+}

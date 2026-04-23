@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import StatCard from "../components/StatCard";
 import { getStats, Stats } from "../api/stats";
 
+import { Link } from "react-router-dom";
+
 const Dashboard = () => {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -15,8 +17,9 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError("");
-      const data = await getStats();
-      setStats(data);
+
+const statsData = await getStats();
+setStats(statsData);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
@@ -134,24 +137,32 @@ const Dashboard = () => {
       </section>
 
       <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          title="Total Utilisateurs"
-          value={stats.totalUsers}
-          subtitle="Comptes enregistrés"
-          accent="emerald"
-        />
-        <StatCard
-          title="Total Analyses"
-          value={stats.totalAnalyses}
-          subtitle="Analyses IA disponibles"
-          accent="teal"
-        />
-        <StatCard
-          title="Total Conseils"
-          value={stats.totalConseils}
-          subtitle="Conseils médicaux"
-          accent="cyan"
-        />
+        <Link to="/users" className="block">
+          <StatCard
+            title="Total Utilisateurs"
+            value={stats.totalUsers}
+            subtitle="Comptes enregistrés"
+            accent="emerald"
+          />
+        </Link>
+
+        <Link to="/analyses" className="block">
+          <StatCard
+            title="Total Analyses"
+            value={stats.totalAnalyses}
+            subtitle="Analyses IA disponibles"
+            accent="teal"
+          />
+        </Link>
+
+        <Link to="/conseils" className="block">
+          <StatCard
+            title="Total Conseils"
+            value={stats.totalConseils}
+            subtitle="Conseils médicaux"
+            accent="cyan"
+          />
+        </Link>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">

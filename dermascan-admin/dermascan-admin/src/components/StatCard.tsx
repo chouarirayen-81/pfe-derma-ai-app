@@ -1,8 +1,11 @@
+import { Link } from "react-router-dom";
+
 interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   accent?: "emerald" | "teal" | "cyan";
+  to?: string;
 }
 
 const accentStyles = {
@@ -26,19 +29,20 @@ const accentStyles = {
   },
 };
 
-const StatCard = ({
+const StatCardContent = ({
   title,
   value,
   subtitle,
   accent = "emerald",
-}: StatCardProps) => {
+}: Omit<StatCardProps, "to">) => {
   const style = accentStyles[accent];
 
   return (
     <div className="group relative overflow-hidden rounded-[28px] border border-white/60 bg-white/85 p-6 shadow-[0_12px_35px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(16,185,129,0.10)]">
       <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-emerald-100/30 blur-2xl" />
-      <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r opacity-90 ${style.line}" />
-      <div className={`absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r ${style.line}`} />
+      <div
+        className={`absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r ${style.line}`}
+      />
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
@@ -72,8 +76,24 @@ const StatCard = ({
           </svg>
         </div>
       </div>
+
+      <div className="mt-5 text-sm font-medium text-emerald-600">
+        Voir les détails →
+      </div>
     </div>
   );
+};
+
+const StatCard = ({ to, ...props }: StatCardProps) => {
+  if (to) {
+    return (
+      <Link to={to} className="block">
+        <StatCardContent {...props} />
+      </Link>
+    );
+  }
+
+  return <StatCardContent {...props} />;
 };
 
 export default StatCard;
