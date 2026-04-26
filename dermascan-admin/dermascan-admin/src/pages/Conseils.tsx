@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Conseil,
+  createConseil,
   deleteConseil,
   getConseils,
   updateConseil,
 } from "../api/conseils";
+import {
+  Pathologie,
+  createPathologie,
+  getPathologies,
+} from "../api/pathologies";
 
 const formatDate = (date?: string) => {
   if (!date) return "-";
@@ -15,6 +21,7 @@ const formatDate = (date?: string) => {
 
 const Conseils = () => {
   const [conseils, setConseils] = useState<Conseil[]>([]);
+  const [pathologies, setPathologies] = useState<Pathologie[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,15 +39,41 @@ const Conseils = () => {
   const [formValeur, setFormValeur] = useState("");
   const [formEmoji, setFormEmoji] = useState("");
 
+  const [newPathologieCode, setNewPathologieCode] = useState("");
+  const [newPathologieNom, setNewPathologieNom] = useState("");
+  const [newPathologieDescription, setNewPathologieDescription] = useState("");
+  const [newPathologieGravite, setNewPathologieGravite] = useState<
+    "faible" | "moderee" | "elevee"
+  >("faible");
+
+  const [newConseilTitle, setNewConseilTitle] = useState("");
+  const [newConseilContent, setNewConseilContent] = useState("");
+  const [newConseilPathologieId, setNewConseilPathologieId] = useState("");
+  const [newConseilType, setNewConseilType] = useState<
+    "prevention" | "traitement" | "urgence" | "information"
+  >("information");
+  const [newConseilOrdre, setNewConseilOrdre] = useState("1");
+  const [newConseilValeur, setNewConseilValeur] = useState("");
+  const [newConseilEmoji, setNewConseilEmoji] = useState("");
+
   const loadConseils = async () => {
+    const data = await getConseils();
+    setConseils(data);
+  };
+
+  const loadPathologies = async () => {
+    const data = await getPathologies();
+    setPathologies(data);
+  };
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError("");
-      const data = await getConseils();
-      setConseils(data);
+      await Promise.all([loadConseils(), loadPathologies()]);
     } catch (err: any) {
       setError(
-        err?.response?.data?.message || "Impossible de charger les conseils."
+        err?.response?.data?.message || "Impossible de charger les données."
       );
     } finally {
       setLoading(false);
@@ -48,7 +81,7 @@ const Conseils = () => {
   };
 
   useEffect(() => {
-    loadConseils();
+    loadData();
   }, []);
 
   const filteredConseils = useMemo(() => {
@@ -120,7 +153,7 @@ const Conseils = () => {
       });
 
       closeEditModal();
-      await loadConseils();
+      await loadData();
     } catch (err: any) {
       alert(
         err?.response?.data?.message ||
@@ -140,11 +173,67 @@ const Conseils = () => {
 
     try {
       await deleteConseil(id);
-      await loadConseils();
+      await loadData();
     } catch (err: any) {
       alert(
         err?.response?.data?.message ||
           "Impossible de supprimer ce conseil."
+      );
+    }
+  };
+
+  const handleAddPathologie = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await createPathologie({
+        code: newPathologieCode,
+        nom: newPathologieNom,
+        description: newPathologieDescription,
+        gravite: newPathologieGravite,
+      });
+
+      setNewPathologieCode("");
+      setNewPathologieNom("");
+      setNewPathologieDescription("");
+      setNewPathologieGravite("faible");
+
+      await loadData();
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ||
+          "Impossible d’ajouter cette pathologie."
+      );
+    }
+  };
+
+  const handleAddConseil = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await createConseil({
+        title: newConseilTitle,
+        content: newConseilContent,
+        pathologieId: Number(newConseilPathologieId),
+        type: newConseilType,
+        ordre: Number(newConseilOrdre || 1),
+        valeur: newConseilValeur,
+        emoji: newConseilEmoji,
+      });
+
+      setNewConseilTitle("");
+      setNewConseilContent("");
+      setNewConseilPathologieId("");
+      setNewConseilType("information");
+      setNewConseilOrdre("1");
+      setNewConseilValeur("");
+      setNewConseilEmoji("");
+
+      await loadData();
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ||
+          "Impossible d’ajouter ce conseil."
       );
     }
   };
@@ -197,6 +286,146 @@ const Conseils = () => {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-[30px] border border-white/70 bg-white/80 p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <h3 className="text-2xl font-bold tracking-tight text-slate-800">
+          Ajouter une pathologie
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Crée une nouvelle pathologie avant d’y associer des conseils.
+        </p>
+
+        <form
+          onSubmit={handleAddPathologie}
+          className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2"
+        >
+          <Input
+            label="Code"
+            value={newPathologieCode}
+            onChange={setNewPathologieCode}
+          />
+          <Input
+            label="Nom"
+            value={newPathologieNom}
+            onChange={setNewPathologieNom}
+          />
+
+          <div className="md:col-span-2">
+            <TextAreaField
+              label="Description"
+              value={newPathologieDescription}
+              onChange={setNewPathologieDescription}
+            />
+          </div>
+
+          <SelectField
+            label="Gravité"
+            value={newPathologieGravite}
+            onChange={(v) =>
+              setNewPathologieGravite(v as "faible" | "moderee" | "elevee")
+            }
+            options={[
+              { value: "faible", label: "faible" },
+              { value: "moderee", label: "moderee" },
+              { value: "elevee", label: "elevee" },
+            ]}
+          />
+
+          <div className="flex items-end">
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
+            >
+              Ajouter la pathologie
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-[30px] border border-white/70 bg-white/80 p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+        <h3 className="text-2xl font-bold tracking-tight text-slate-800">
+          Ajouter un conseil
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Crée un conseil et relie-le directement à une pathologie existante.
+        </p>
+
+        <form
+          onSubmit={handleAddConseil}
+          className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2"
+        >
+          <Input
+            label="Titre"
+            value={newConseilTitle}
+            onChange={setNewConseilTitle}
+          />
+
+          <SelectField
+            label="Pathologie"
+            value={newConseilPathologieId}
+            onChange={setNewConseilPathologieId}
+            options={[
+              { value: "", label: "Choisir une pathologie" },
+              ...pathologies.map((pathologie) => ({
+                value: String(pathologie.id),
+                label: pathologie.nom,
+              })),
+            ]}
+          />
+
+          <div className="md:col-span-2">
+            <TextAreaField
+              label="Contenu"
+              value={newConseilContent}
+              onChange={setNewConseilContent}
+            />
+          </div>
+
+          <SelectField
+            label="Type"
+            value={newConseilType}
+            onChange={(v) =>
+              setNewConseilType(
+                v as "prevention" | "traitement" | "urgence" | "information"
+              )
+            }
+            options={[
+              { value: "information", label: "information" },
+              { value: "prevention", label: "prevention" },
+              { value: "traitement", label: "traitement" },
+              { value: "urgence", label: "urgence" },
+            ]}
+          />
+
+          <Input
+            label="Ordre"
+            value={newConseilOrdre}
+            onChange={setNewConseilOrdre}
+            type="number"
+          />
+
+          <Input
+            label="Valeur"
+            value={newConseilValeur}
+            onChange={setNewConseilValeur}
+          />
+
+          <Input
+            label="Emoji"
+            value={newConseilEmoji}
+            onChange={setNewConseilEmoji}
+          />
+
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-200"
+            >
+              Ajouter le conseil
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="rounded-[30px] border border-white/70 bg-white/80 p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl">
@@ -300,12 +529,20 @@ const Conseils = () => {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input label="Titre" value={formTitle} onChange={setFormTitle} />
-              <Input
-                label="Pathologie ID"
+
+              <SelectField
+                label="Pathologie"
                 value={formPathologieId}
                 onChange={setFormPathologieId}
-                type="number"
+                options={[
+                  { value: "", label: "Choisir une pathologie" },
+                  ...pathologies.map((pathologie) => ({
+                    value: String(pathologie.id),
+                    label: pathologie.nom,
+                  })),
+                ]}
               />
+
               <Input
                 label="Ordre"
                 value={formOrdre}

@@ -4,16 +4,16 @@ import { ConseilEntity } from './conseil.entity';
 @Entity({ name: 'pathologies' })
 export class PathologieEntity {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ name: 'code', type: 'varchar', length: 50 })
-  code: string;
+  code!: string;
 
   @Column({ name: 'nom', type: 'varchar', length: 150 })
-  nom: string;
+  nom!: string;
 
   @Column({ name: 'description', type: 'text', nullable: true })
-  description?: string;
+  description?: string | null;
 
   @Column({
     name: 'gravite',
@@ -22,14 +22,14 @@ export class PathologieEntity {
     default: 'faible',
     nullable: true,
   })
-  gravite?: 'faible' | 'moderee' | 'elevee';
+  gravite?: 'faible' | 'moderee' | 'elevee' | null;
 
   @Column({ name: 'actif', type: 'tinyint', default: 1 })
-  actif: boolean;
+  actif!: boolean;
 
   @Column({ name: 'cree_le', type: 'datetime', nullable: true })
-  creeLe?: Date;
+  creeLe?: Date | null;
 
   @OneToMany(() => ConseilEntity, (conseil) => conseil.pathologie)
-  conseils: ConseilEntity[];
+  conseils!: ConseilEntity[];
 }

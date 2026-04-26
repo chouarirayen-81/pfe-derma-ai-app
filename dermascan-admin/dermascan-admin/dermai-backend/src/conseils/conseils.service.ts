@@ -44,6 +44,38 @@ export class ConseilsService {
     }));
   }
 
+  async create(payload: {
+    title: string;
+    content: string;
+    pathologieId: number;
+    type?: 'prevention' | 'traitement' | 'urgence' | 'information';
+    ordre?: number;
+    valeur?: string;
+    emoji?: string;
+  }) {
+    const pathologie = await this.pathologiesRepository.findOne({
+      where: { id: payload.pathologieId },
+    });
+
+    if (!pathologie) {
+      throw new BadRequestException('Pathologie introuvable');
+    }
+
+    const conseil = this.conseilsRepository.create({
+      titre: payload.title.trim(),
+      contenu: payload.content.trim(),
+      pathologieId: payload.pathologieId,
+      pathologie,
+      type: payload.type || 'information',
+      ordre: payload.ordre ?? 1,
+      valeur: payload.valeur?.trim() || null,
+      emoji: payload.emoji?.trim() || null,
+      actif: true,
+    });
+
+    return this.conseilsRepository.save(conseil);
+  }
+
   async update(
     id: number,
     payload: {

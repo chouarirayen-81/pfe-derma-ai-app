@@ -46,6 +46,19 @@ export const updateConseil = async (
   return data;
 };
 
+export const createConseil = async (payload: {
+  title: string;
+  content: string;
+  pathologieId: number;
+  type?: "prevention" | "traitement" | "urgence" | "information";
+  ordre?: number;
+  valeur?: string;
+  emoji?: string;
+}) => {
+  const { data } = await http.post("/conseils", payload);
+  return data;
+}; 
+
 export const deleteConseil = async (id: number | string) => {
   const { data } = await http.delete(`/conseils/${id}`);
   return data;

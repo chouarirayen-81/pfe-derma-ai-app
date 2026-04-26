@@ -1,8 +1,13 @@
-import { useAuth } from "../hooks/useAuth";
+interface TopbarProps {
+  admin: {
+    name?: string;
+    full_name?: string;
+    email?: string;
+  } | null;
+  onLogout: () => void;
+}
 
-const Topbar = () => {
-  const { user, logout } = useAuth();
-
+const Topbar = ({ admin, onLogout }: TopbarProps) => {
   return (
     <header className="sticky top-0 z-20 border-b border-emerald-100/80 bg-white/75 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between px-6 py-5 md:px-8">
@@ -22,19 +27,20 @@ const Topbar = () => {
         <div className="flex items-center gap-4">
           <div className="hidden rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm md:flex md:items-center md:gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 text-sm font-bold text-white shadow-md">
-              {(user?.name || user?.full_name || "A").charAt(0).toUpperCase()}
+              {(admin?.name || admin?.full_name || "A").charAt(0).toUpperCase()}
             </div>
 
             <div className="text-right">
               <p className="text-sm font-semibold text-slate-800">
-                {user?.name || user?.full_name || "Admin"}
+                {admin?.name || admin?.full_name || "Admin"}
               </p>
-              <p className="text-xs text-slate-500">{user?.email}</p>
+              <p className="text-xs text-slate-500">{admin?.email || ""}</p>
             </div>
           </div>
 
           <button
-            onClick={logout}
+            type="button"
+            onClick={onLogout}
             className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-300/30"
           >
             Déconnexion

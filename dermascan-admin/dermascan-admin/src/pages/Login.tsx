@@ -1,17 +1,18 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { loginAdmin } from "../api/adminAuth";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
 
-  const [email, setEmail] = useState("admin@test.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  if (isAuthenticated) {
+  const token = localStorage.getItem("token");
+
+  if (token) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -21,8 +22,12 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate("/dashboard");
+      const data = await loginAdmin({ email, password });
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("admin", JSON.stringify(data.admin));
+
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
       setError(
         err?.response?.data?.message || "Email ou mot de passe incorrect"
@@ -101,7 +106,8 @@ const Login = () => {
                     className="w-full rounded-2xl border border-emerald-100 bg-white px-5 py-4 text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@test.com"
+                    placeholder="Votre adresse email"
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -115,7 +121,8 @@ const Login = () => {
                     className="w-full rounded-2xl border border-emerald-100 bg-white px-5 py-4 text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="123456"
+                    placeholder="Votre mot de passe"
+                    autoComplete="current-password"
                     required
                   />
                 </div>
@@ -135,9 +142,14 @@ const Login = () => {
                 </button>
               </form>
 
-              <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                Identifiants de test : <strong>admin@test.com</strong> /{" "}
-                <strong>123456</strong>
+              <div className="mt-4 text-center text-sm text-slate-600">
+                Pas encore de compte admin ?{" "}
+                <Link
+                  to="/admin-signup"
+                  className="font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Créer un compte
+                </Link>
               </div>
             </div>
           </div>

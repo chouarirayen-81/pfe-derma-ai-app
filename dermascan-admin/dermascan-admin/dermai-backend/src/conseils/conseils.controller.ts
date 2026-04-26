@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { ConseilsService } from './conseils.service';
@@ -21,6 +22,22 @@ export class ConseilsController {
   @Get()
   findAll() {
     return this.conseilsService.findAll();
+  }
+
+  @Post()
+  create(
+    @Body()
+    body: {
+      title: string;
+      content: string;
+      pathologieId: number;
+      type?: 'prevention' | 'traitement' | 'urgence' | 'information';
+      ordre?: number;
+      valeur?: string;
+      emoji?: string;
+    },
+  ) {
+    return this.conseilsService.create(body);
   }
 
   @Patch(':id')

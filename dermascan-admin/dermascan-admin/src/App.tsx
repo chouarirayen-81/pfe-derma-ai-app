@@ -1,19 +1,21 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import Layout from "./components/Layout";
-import ProtectedRoute from "./components/ProtectedRoute";
-
+import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
+import AdminSignup from "./pages/AdminSignup";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Conseils from "./pages/Conseils";
 import Analyses from "./pages/Analyses";
 import Stats from "./pages/Stats";
 import Settings from "./pages/Settings";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/admin-signup" element={<AdminSignup />} />
 
       <Route
         path="/dashboard"
@@ -81,8 +83,7 @@ function App() {
         }
       />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
